@@ -1,18 +1,31 @@
 import { useState, useMemo } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAuth } from "@/hooks/useAuth";
 import { LoyaltyCard } from "@/types/card";
 import { CardItem } from "@/components/CardItem";
 import { SearchBar } from "@/components/SearchBar";
 import { SortSelect } from "@/components/SortSelect";
 import { Button } from "@/components/ui/button";
-import { Plus, Wallet } from "lucide-react";
+import { Plus, Wallet, LogOut } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const Home = () => {
   const navigate = useNavigate();
+  const { currentUser, logout } = useAuth();
+  const { toast } = useToast();
   const [cards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
+
+  const handleLogout = () => {
+    logout();
+    toast({
+      title: "Até logo!",
+      description: "Você saiu do Fidelize",
+    });
+    navigate("/login");
+  };
 
   const filteredAndSortedCards = useMemo(() => {
     let filtered = cards.filter((card) =>
@@ -37,9 +50,23 @@ const Home = () => {
     <div className="min-h-screen bg-background">
       <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Wallet className="w-6 h-6" />
-            <h1 className="text-xl font-bold">Meus Cartões Fidelidade</h1>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Wallet className="w-6 h-6" />
+              <div>
+                <h1 className="text-xl font-bold">Meus Cartões Fidelidade</h1>
+                <p className="text-xs opacity-80">{currentUser?.name}</p>
+              </div>
+            </div>
+            <Button 
+              variant="ghost" 
+              size="sm"
+              onClick={handleLogout}
+              className="text-primary-foreground hover:bg-primary-foreground/10"
+            >
+              <LogOut className="w-4 h-4 mr-2" />
+              Sair
+            </Button>
           </div>
         </div>
       </header>
