@@ -3,6 +3,7 @@ export interface LoyaltyCard {
   storeName: string;
   cardNumber: string;
   points: number;
+  storePin: string;
   logo?: string;
   createdAt: string;
   updatedAt: string;

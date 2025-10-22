@@ -19,6 +19,7 @@ const AddCard = () => {
   const [storeName, setStoreName] = useState(existingCard?.storeName || "");
   const [cardNumber, setCardNumber] = useState(existingCard?.cardNumber || "");
   const [points, setPoints] = useState(existingCard?.points.toString() || "0");
+  const [storePin, setStorePin] = useState(existingCard?.storePin || "");
   const [logo, setLogo] = useState(existingCard?.logo || "");
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -40,11 +41,17 @@ const AddCard = () => {
       return;
     }
 
+    if (!storePin || storePin.length !== 4 || !/^\d{4}$/.test(storePin)) {
+      toast.error("Por favor, insira um PIN de 4 dígitos");
+      return;
+    }
+
     const newCard: LoyaltyCard = {
       id: id || Date.now().toString(),
       storeName: storeName.trim(),
       cardNumber: cardNumber.trim(),
       points: parseInt(points) || 0,
+      storePin: storePin,
       logo: logo || undefined,
       createdAt: existingCard?.createdAt || new Date().toISOString(),
       updatedAt: new Date().toISOString(),
@@ -114,6 +121,20 @@ const AddCard = () => {
                 onChange={(e) => setPoints(e.target.value)}
                 placeholder="0"
                 min="0"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="storePin">PIN da Loja (4 dígitos) *</Label>
+              <Input
+                id="storePin"
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={storePin}
+                onChange={(e) => setStorePin(e.target.value.replace(/\D/g, ""))}
+                placeholder="0000"
+                required
               />
             </div>
 

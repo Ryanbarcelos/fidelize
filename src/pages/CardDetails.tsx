@@ -1,8 +1,11 @@
+import { useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { LoyaltyCard } from "@/types/card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,13 +17,25 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Edit, Trash2, CreditCard } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Edit, Trash2, CreditCard, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 const CardDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
+  const [pinInput, setPinInput] = useState("");
+  const [pointsToAdd, setPointsToAdd] = useState("");
 
   const card = cards.find((c) => c.id === id);
 
@@ -39,6 +54,32 @@ const CardDetails = () => {
     setCards(cards.filter((c) => c.id !== id));
     toast.success("Cartão excluído com sucesso!");
     navigate("/");
+  };
+
+  const handleAddPoints = () => {
+    if (!card) return;
+
+    if (pinInput !== card.storePin) {
+      toast.error("PIN incorreto");
+      return;
+    }
+
+    const points = parseInt(pointsToAdd) || 0;
+    if (points <= 0) {
+      toast.error("Por favor, insira uma quantidade válida de pontos");
+      return;
+    }
+
+    const updatedCards = cards.map((c) =>
+      c.id === id
+        ? { ...c, points: c.points + points, updatedAt: new Date().toISOString() }
+        : c
+    );
+    setCards(updatedCards);
+    toast.success(`${points} pontos adicionados com sucesso!`);
+    setIsAddPointsOpen(false);
+    setPinInput("");
+    setPointsToAdd("");
   };
 
   return (
@@ -108,6 +149,63 @@ const CardDetails = () => {
             )}
           </div>
         </Card>
+
+        <div className="mb-4">
+          <Dialog open={isAddPointsOpen} onOpenChange={setIsAddPointsOpen}>
+            <DialogTrigger asChild>
+              <Button className="w-full" size="lg">
+                <Plus className="w-4 h-4 mr-2" />
+                Adicionar Pontos
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Adicionar Pontos</DialogTitle>
+                <DialogDescription>
+                  Digite o PIN da loja para adicionar pontos ao cartão
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-4">
+                <div className="space-y-2">
+                  <Label htmlFor="pin">PIN da Loja (4 dígitos)</Label>
+                  <Input
+                    id="pin"
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={pinInput}
+                    onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
+                    placeholder="0000"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="pointsAmount">Quantidade de pontos a adicionar</Label>
+                  <Input
+                    id="pointsAmount"
+                    type="number"
+                    min="1"
+                    value={pointsToAdd}
+                    onChange={(e) => setPointsToAdd(e.target.value)}
+                    placeholder="Ex: 10"
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setIsAddPointsOpen(false);
+                    setPinInput("");
+                    setPointsToAdd("");
+                  }}
+                >
+                  Cancelar
+                </Button>
+                <Button onClick={handleAddPoints}>Confirmar</Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        </div>
 
         <div className="flex gap-3">
           <Button
