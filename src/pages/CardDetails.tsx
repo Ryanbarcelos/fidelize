@@ -82,92 +82,137 @@ const CardDetails = () => {
     setPointsToAdd("");
   };
 
+  const cardColors = [
+    "from-blue-500 to-blue-600",
+    "from-purple-500 to-purple-600",
+    "from-pink-500 to-pink-600",
+    "from-green-500 to-green-600",
+    "from-orange-500 to-orange-600",
+    "from-red-500 to-red-600",
+  ];
+  
+  const colorIndex = card.id.charCodeAt(0) % cardColors.length;
+  const getInitial = (name: string) => name.charAt(0).toUpperCase();
+
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground shadow-md">
+      {/* Header */}
+      <header className="bg-white dark:bg-card border-b">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-3">
             <Button
               variant="ghost"
               size="icon"
               onClick={() => navigate("/")}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
+              className="text-foreground"
             >
               <ArrowLeft className="w-5 h-5" />
             </Button>
-            <h1 className="text-xl font-bold">Detalhes do Cartão</h1>
+            <h1 className="text-xl font-bold text-foreground">Detalhes do Cartão</h1>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6">
-        <Card className="p-6 mb-6">
-          <div className="flex flex-col items-center text-center mb-6">
-            <div className="w-24 h-24 rounded-2xl bg-primary/10 flex items-center justify-center mb-4 overflow-hidden">
-              {card.logo ? (
-                <img src={card.logo} alt={card.storeName} className="w-full h-full object-cover" />
-              ) : (
-                <CreditCard className="w-12 h-12 text-primary" />
-              )}
-            </div>
-            <h2 className="text-2xl font-bold text-foreground mb-1">{card.storeName}</h2>
-            <p className="text-3xl font-bold text-primary mt-2">
-              {card.points} {card.points === 1 ? "ponto" : "pontos"}
-            </p>
+      <main className="container mx-auto px-4 py-6 pb-8 animate-fade-in">
+        {/* Card Display - Styled like a real card */}
+        <div className={`relative overflow-hidden rounded-3xl bg-gradient-to-br ${cardColors[colorIndex]} p-8 shadow-2xl mb-6 min-h-[240px]`}>
+          {/* Background pattern */}
+          <div className="absolute inset-0 opacity-10">
+            <div className="absolute top-0 right-0 w-40 h-40 bg-white rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-32 h-32 bg-white rounded-full translate-y-1/2 -translate-x-1/2" />
           </div>
 
-          <div className="space-y-4">
-            {card.cardNumber && (
-              <div className="border-t pt-4">
-                <p className="text-sm text-muted-foreground mb-1">Número do Cartão</p>
-                <p className="font-mono text-foreground">{card.cardNumber}</p>
+          <div className="relative">
+            {/* Logo/Initial */}
+            <div className="flex justify-between items-start mb-8">
+              <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center overflow-hidden border border-white/30">
+                {card.logo ? (
+                  <img src={card.logo} alt={card.storeName} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-white text-2xl font-bold drop-shadow-md">
+                    {getInitial(card.storeName)}
+                  </span>
+                )}
               </div>
+              <div className="text-right">
+                <p className="text-white/80 text-sm font-medium">Cartão Fidelidade</p>
+              </div>
+            </div>
+
+            {/* Store Name */}
+            <h2 className="text-white text-2xl font-bold mb-2 drop-shadow-md">{card.storeName}</h2>
+            
+            {/* Card Number */}
+            {card.cardNumber && (
+              <p className="text-white/90 text-sm font-mono mb-6 drop-shadow">
+                {card.cardNumber}
+              </p>
             )}
 
-            <div className="border-t pt-4">
-              <p className="text-sm text-muted-foreground mb-1">Cadastrado em</p>
-              <p className="text-foreground">
+            {/* Points Display */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
+              <p className="text-white/80 text-sm font-medium mb-1">Saldo de Pontos</p>
+              <div className="flex items-baseline gap-2">
+                <span className="text-white text-4xl font-bold drop-shadow-md">
+                  {card.points}
+                </span>
+                <span className="text-white/90 text-lg font-medium">
+                  {card.points === 1 ? "ponto" : "pontos"}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Card Info */}
+        <Card className="p-6 mb-6 border-0 shadow-md">
+          <h3 className="font-semibold text-foreground mb-4 text-lg">Informações do Cartão</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between items-center py-3 border-b">
+              <span className="text-sm text-muted-foreground">Cadastrado em</span>
+              <span className="text-sm font-medium text-foreground">
                 {new Date(card.createdAt).toLocaleDateString("pt-BR", {
                   day: "2-digit",
-                  month: "long",
+                  month: "short",
                   year: "numeric",
                 })}
-              </p>
+              </span>
             </div>
 
             {card.updatedAt !== card.createdAt && (
-              <div className="border-t pt-4">
-                <p className="text-sm text-muted-foreground mb-1">Última atualização</p>
-                <p className="text-foreground">
+              <div className="flex justify-between items-center py-3 border-b">
+                <span className="text-sm text-muted-foreground">Última atualização</span>
+                <span className="text-sm font-medium text-foreground">
                   {new Date(card.updatedAt).toLocaleDateString("pt-BR", {
                     day: "2-digit",
-                    month: "long",
+                    month: "short",
                     year: "numeric",
                   })}
-                </p>
+                </span>
               </div>
             )}
           </div>
         </Card>
 
+        {/* Add Points Button */}
         <div className="mb-4">
           <Dialog open={isAddPointsOpen} onOpenChange={setIsAddPointsOpen}>
             <DialogTrigger asChild>
-              <Button className="w-full" size="lg">
-                <Plus className="w-4 h-4 mr-2" />
+              <Button className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl" size="lg">
+                <Plus className="w-5 h-5 mr-2" />
                 Adicionar Pontos
               </Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="rounded-3xl">
               <DialogHeader>
-                <DialogTitle>Adicionar Pontos</DialogTitle>
+                <DialogTitle className="text-2xl">Adicionar Pontos</DialogTitle>
                 <DialogDescription>
                   Digite o PIN da loja para adicionar pontos ao cartão
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 <div className="space-y-2">
-                  <Label htmlFor="pin">PIN da Loja (4 dígitos)</Label>
+                  <Label htmlFor="pin" className="text-base">PIN da Loja</Label>
                   <Input
                     id="pin"
                     type="password"
@@ -176,10 +221,11 @@ const CardDetails = () => {
                     value={pinInput}
                     onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
                     placeholder="0000"
+                    className="h-14 text-lg text-center tracking-widest rounded-2xl"
                   />
                 </div>
                 <div className="space-y-2">
-                  <Label htmlFor="pointsAmount">Quantidade de pontos a adicionar</Label>
+                  <Label htmlFor="pointsAmount" className="text-base">Quantidade de pontos</Label>
                   <Input
                     id="pointsAmount"
                     type="number"
@@ -187,10 +233,11 @@ const CardDetails = () => {
                     value={pointsToAdd}
                     onChange={(e) => setPointsToAdd(e.target.value)}
                     placeholder="Ex: 10"
+                    className="h-14 text-lg rounded-2xl"
                   />
                 </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="gap-2">
                 <Button
                   variant="outline"
                   onClick={() => {
@@ -198,20 +245,22 @@ const CardDetails = () => {
                     setPinInput("");
                     setPointsToAdd("");
                   }}
+                  className="rounded-2xl"
                 >
                   Cancelar
                 </Button>
-                <Button onClick={handleAddPoints}>Confirmar</Button>
+                <Button onClick={handleAddPoints} className="rounded-2xl">Confirmar</Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
         </div>
 
-        <div className="flex gap-3">
+        {/* Action Buttons */}
+        <div className="grid grid-cols-2 gap-3">
           <Button
             onClick={() => navigate(`/edit-card/${card.id}`)}
-            className="flex-1"
             variant="outline"
+            className="h-14 rounded-2xl"
           >
             <Edit className="w-4 h-4 mr-2" />
             Editar
@@ -219,22 +268,23 @@ const CardDetails = () => {
 
           <AlertDialog>
             <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="flex-1">
+              <Button variant="destructive" className="h-14 rounded-2xl">
                 <Trash2 className="w-4 h-4 mr-2" />
                 Excluir
               </Button>
             </AlertDialogTrigger>
-            <AlertDialogContent>
+            <AlertDialogContent className="rounded-3xl">
               <AlertDialogHeader>
-                <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Tem certeza que deseja excluir o cartão "{card.storeName}"? Esta ação não pode
-                  ser desfeita.
+                <AlertDialogTitle className="text-xl">Confirmar exclusão</AlertDialogTitle>
+                <AlertDialogDescription className="text-base">
+                  Tem certeza que deseja excluir o cartão <span className="font-semibold">"{card.storeName}"</span>? Esta ação não pode ser desfeita.
                 </AlertDialogDescription>
               </AlertDialogHeader>
               <AlertDialogFooter>
-                <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+                <AlertDialogCancel className="rounded-2xl">Cancelar</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDelete} className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  Excluir
+                </AlertDialogAction>
               </AlertDialogFooter>
             </AlertDialogContent>
           </AlertDialog>

@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
 import { Wallet } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
@@ -54,65 +55,69 @@ const SignUp = () => {
   };
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center p-4">
+      <div className="w-full max-w-md animate-fade-in">
         <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-            <Wallet className="w-8 h-8 text-primary" />
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center mx-auto mb-6 shadow-xl">
+            <Wallet className="w-10 h-10 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-foreground mb-2">Criar Conta</h1>
-          <p className="text-muted-foreground">Cadastre-se para começar</p>
+          <h1 className="text-4xl font-bold text-foreground mb-2">Criar Conta</h1>
+          <p className="text-lg text-muted-foreground">Junte-se ao Fidelize</p>
         </div>
 
-        <div className="bg-card border rounded-lg p-6 shadow-sm">
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <Label htmlFor="name">Nome Completo</Label>
+        <Card className="border-0 shadow-2xl rounded-3xl p-8">
+          <form onSubmit={handleSubmit} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="name" className="text-base font-semibold">Nome Completo</Label>
               <Input
                 id="name"
                 type="text"
                 placeholder="Seu nome"
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                className="h-12 rounded-2xl"
               />
             </div>
 
-            <div>
-              <Label htmlFor="email">Email</Label>
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-base font-semibold">Email</Label>
               <Input
                 id="email"
                 type="email"
                 placeholder="seu@email.com"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                className="h-12 rounded-2xl"
               />
             </div>
 
-            <div>
-              <Label htmlFor="password">Senha</Label>
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-base font-semibold">Senha</Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="••••••••"
+                placeholder="Mínimo 6 caracteres"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
+                className="h-12 rounded-2xl"
               />
             </div>
 
-            <Button type="submit" className="w-full">
-              Cadastrar
+            <Button type="submit" className="w-full h-12 text-base rounded-2xl shadow-lg mt-6">
+              Criar Conta
             </Button>
           </form>
 
           <div className="mt-6 text-center">
+            <p className="text-sm text-muted-foreground mb-2">Já tem uma conta?</p>
             <Link 
               to="/login" 
-              className="text-sm text-primary hover:underline"
+              className="text-base font-semibold text-primary hover:underline"
             >
-              Já tem conta? Entrar
+              Entrar agora
             </Link>
           </div>
-        </div>
+        </Card>
       </div>
     </div>
   );

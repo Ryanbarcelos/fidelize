@@ -8,81 +8,87 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 217 33% 17%;
+    --background: 220 20% 97%;
+    --foreground: 220 15% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 217 33% 17%;
+    --card-foreground: 220 15% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 217 33% 17%;
+    --popover-foreground: 220 15% 20%;
 
-    --primary: 217 91% 60%;
+    --primary: 217 91% 59%;
     --primary-foreground: 0 0% 100%;
+    
+    --primary-light: 217 91% 70%;
+    --primary-glow: 217 91% 85%;
 
-    --secondary: 217 20% 95%;
-    --secondary-foreground: 217 33% 17%;
+    --secondary: 217 100% 76%;
+    --secondary-foreground: 220 15% 20%;
 
-    --muted: 217 20% 95%;
-    --muted-foreground: 217 13% 50%;
+    --muted: 220 15% 96%;
+    --muted-foreground: 220 10% 50%;
 
-    --accent: 217 91% 60%;
+    --accent: 217 91% 59%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 217 20% 90%;
-    --input: 217 20% 95%;
-    --ring: 217 91% 60%;
+    --border: 220 15% 92%;
+    --input: 220 15% 96%;
+    --ring: 217 91% 59%;
 
-    --radius: 0.5rem;
+    --radius: 1rem;
+
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
 
     --sidebar-background: 0 0% 98%;
-
     --sidebar-foreground: 240 5.3% 26.1%;
-
     --sidebar-primary: 240 5.9% 10%;
-
     --sidebar-primary-foreground: 0 0% 98%;
-
     --sidebar-accent: 240 4.8% 95.9%;
-
     --sidebar-accent-foreground: 240 5.9% 10%;
-
     --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 217 91% 59%;
   }
 
   .dark {
-    --background: 217 33% 10%;
+    --background: 220 20% 10%;
     --foreground: 0 0% 98%;
 
-    --card: 217 28% 14%;
+    --card: 220 18% 14%;
     --card-foreground: 0 0% 98%;
 
-    --popover: 217 28% 14%;
+    --popover: 220 18% 14%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 217 91% 60%;
+    --primary: 217 91% 59%;
     --primary-foreground: 0 0% 100%;
+    
+    --primary-light: 217 91% 70%;
+    --primary-glow: 217 91% 85%;
 
-    --secondary: 217 28% 20%;
-    --secondary-foreground: 0 0% 98%;
+    --secondary: 217 100% 76%;
+    --secondary-foreground: 220 18% 14%;
 
-    --muted: 217 28% 20%;
-    --muted-foreground: 217 13% 65%;
+    --muted: 220 18% 18%;
+    --muted-foreground: 220 10% 65%;
 
-    --accent: 217 91% 60%;
+    --accent: 217 91% 59%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 217 28% 20%;
-    --input: 217 28% 20%;
-    --ring: 217 91% 60%;
+    --border: 220 18% 20%;
+    --input: 220 18% 18%;
+    --ring: 217 91% 59%;
+    
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;
@@ -90,7 +96,7 @@ All colors MUST be HSL.
     --sidebar-accent: 240 3.7% 15.9%;
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 217 91% 59%;
   }
 }
 
@@ -100,6 +106,62 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply bg-background text-foreground font-sans antialiased;
+  }
+}
+
+@layer utilities {
+  .card-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--primary-light)) 100%);
+  }
+  
+  .card-gradient-subtle {
+    background: linear-gradient(135deg, hsl(var(--card)) 0%, hsl(var(--muted)) 100%);
+  }
+  
+  .animate-success {
+    animation: successPulse 0.6s ease-out;
+  }
+  
+  @keyframes successPulse {
+    0% {
+      transform: scale(1);
+    }
+    50% {
+      transform: scale(1.05);
+    }
+    100% {
+      transform: scale(1);
+    }
+  }
+  
+  .fade-in {
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .slide-up {
+    animation: slideUp 0.4s ease-out;
+  }
+  
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 }

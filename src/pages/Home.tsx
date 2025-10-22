@@ -48,73 +48,88 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="bg-primary text-primary-foreground shadow-md sticky top-0 z-10">
+      {/* Modern Header */}
+      <header className="bg-white dark:bg-card border-b sticky top-0 z-10 backdrop-blur-sm bg-white/95 dark:bg-card/95">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <Wallet className="w-6 h-6" />
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-md">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
               <div>
-                <h1 className="text-xl font-bold">Meus Cartões Fidelidade</h1>
-                <p className="text-xs opacity-80">{currentUser?.name}</p>
+                <h1 className="text-xl font-bold text-foreground">Fidelize</h1>
+                <p className="text-xs text-muted-foreground">Olá, {currentUser?.name}</p>
               </div>
             </div>
             <Button 
               variant="ghost" 
               size="sm"
               onClick={handleLogout}
-              className="text-primary-foreground hover:bg-primary-foreground/10"
+              className="text-muted-foreground hover:text-foreground"
             >
-              <LogOut className="w-4 h-4 mr-2" />
-              Sair
+              <LogOut className="w-4 h-4" />
             </Button>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-24">
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <div className="flex-1">
-            <SearchBar value={searchQuery} onChange={setSearchQuery} />
+        <div className="mb-6 space-y-3">
+          <h2 className="text-2xl font-bold text-foreground">Meus Cartões</h2>
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="flex-1">
+              <SearchBar value={searchQuery} onChange={setSearchQuery} />
+            </div>
+            <SortSelect value={sortBy} onChange={setSortBy} />
           </div>
-          <SortSelect value={sortBy} onChange={setSortBy} />
         </div>
 
         {filteredAndSortedCards.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Wallet className="w-10 h-10 text-primary" />
+          <div className="text-center py-16 animate-fade-in">
+            <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mx-auto mb-6">
+              <Wallet className="w-12 h-12 text-primary" />
             </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              {searchQuery ? "Nenhum cartão encontrado" : "Nenhum cartão cadastrado"}
+            <h2 className="text-2xl font-bold text-foreground mb-2">
+              {searchQuery ? "Nenhum cartão encontrado" : "Comece Agora"}
             </h2>
-            <p className="text-muted-foreground mb-6">
+            <p className="text-muted-foreground mb-8 max-w-sm mx-auto">
               {searchQuery
                 ? "Tente buscar com outros termos"
-                : "Adicione seu primeiro cartão fidelidade"}
+                : "Adicione seu primeiro cartão de fidelidade e comece a acumular pontos"}
             </p>
             {!searchQuery && (
-              <Button onClick={() => navigate("/add-card")}>
-                <Plus className="w-4 h-4 mr-2" />
-                Adicionar Cartão
+              <Button 
+                onClick={() => navigate("/add-card")}
+                size="lg"
+                className="rounded-full shadow-lg hover:shadow-xl"
+              >
+                <Plus className="w-5 h-5 mr-2" />
+                Adicionar Primeiro Cartão
               </Button>
             )}
           </div>
         ) : (
           <div className="grid gap-4">
-            {filteredAndSortedCards.map((card) => (
-              <CardItem key={card.id} card={card} />
+            {filteredAndSortedCards.map((card, index) => (
+              <div 
+                key={card.id}
+                style={{ animationDelay: `${index * 50}ms` }}
+              >
+                <CardItem card={card} />
+              </div>
             ))}
           </div>
         )}
       </main>
 
-      <div className="fixed bottom-6 right-6">
+      {/* Floating Action Button */}
+      <div className="fixed bottom-8 right-8 z-20">
         <Button
           size="lg"
           onClick={() => navigate("/add-card")}
-          className="rounded-full w-14 h-14 shadow-lg hover:shadow-xl transition-all"
+          className="rounded-full w-16 h-16 shadow-2xl hover:shadow-3xl transition-all hover:scale-110"
         >
-          <Plus className="w-6 h-6" />
+          <Plus className="w-7 h-7" />
         </Button>
       </div>
     </div>
