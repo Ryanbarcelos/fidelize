@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAchievements } from "@/hooks/useAchievements";
 import { LoyaltyCard } from "@/types/card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -36,6 +37,7 @@ const CardDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const { updateAchievements, incrementRewardsCollected } = useAchievements();
   const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
   const [isCollectRewardOpen, setIsCollectRewardOpen] = useState(false);
   const [celebrationDialog, setCelebrationDialog] = useState<{ open: boolean; type: "complete" | "reward" | null }>({ 
@@ -140,6 +142,9 @@ const CardDetails = () => {
     setIsAddPointsOpen(false);
     setPinInput("");
     setPointsToAdd("");
+    
+    // Update achievements
+    updateAchievements();
   };
 
   const handleCollectReward = () => {
@@ -167,6 +172,9 @@ const CardDetails = () => {
     
     // Show celebration dialog
     setCelebrationDialog({ open: true, type: "reward" });
+    
+    // Increment rewards collected achievement
+    incrementRewardsCollected();
     
     setIsCollectRewardOpen(false);
     setCollectPinInput("");

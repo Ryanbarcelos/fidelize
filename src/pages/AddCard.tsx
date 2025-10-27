@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useAchievements } from "@/hooks/useAchievements";
 import { LoyaltyCard } from "@/types/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,7 @@ const AddCard = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const { updateAchievements } = useAchievements();
   
   const existingCard = id ? cards.find((c) => c.id === id) : null;
   
@@ -79,6 +81,9 @@ const AddCard = () => {
       });
     }
 
+    // Update achievements
+    updateAchievements();
+    
     setTimeout(() => {
       navigate("/");
     }, 300);

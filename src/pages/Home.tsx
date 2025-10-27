@@ -1,12 +1,13 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "@/hooks/useAuth";
+import { useAchievements } from "@/hooks/useAchievements";
 import { LoyaltyCard } from "@/types/card";
 import { CardItem } from "@/components/CardItem";
 import { SearchBar } from "@/components/SearchBar";
 import { SortSelect } from "@/components/SortSelect";
 import { Button } from "@/components/ui/button";
-import { Plus, Wallet, LogOut } from "lucide-react";
+import { Plus, Wallet, LogOut, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 
@@ -17,6 +18,12 @@ const Home = () => {
   const [cards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
+  const { updateAchievements, getCompletedCount } = useAchievements();
+
+  // Update achievements whenever cards change
+  useEffect(() => {
+    updateAchievements();
+  }, [cards, updateAchievements]);
 
   const handleLogout = () => {
     logout();
@@ -61,14 +68,29 @@ const Home = () => {
                 <p className="text-xs text-muted-foreground">Olá, {currentUser?.name}</p>
               </div>
             </div>
-            <Button 
-              variant="ghost" 
-              size="sm"
-              onClick={handleLogout}
-              className="text-muted-foreground hover:text-foreground"
-            >
-              <LogOut className="w-4 h-4" />
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={() => navigate("/achievements")}
+                className="text-muted-foreground hover:text-foreground relative"
+              >
+                <Trophy className="w-4 h-4" />
+                {getCompletedCount() > 0 && (
+                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-success text-white text-xs rounded-full flex items-center justify-center">
+                    {getCompletedCount()}
+                  </span>
+                )}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                onClick={handleLogout}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </header>
