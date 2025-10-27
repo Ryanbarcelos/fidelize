@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,11 @@ const SignUp = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    setIsVisible(true);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +49,11 @@ const SignUp = () => {
         title: "Conta criada!",
         description: "Bem-vindo ao Fidelize",
       });
-      navigate("/");
+      
+      // Smooth transition to home
+      setTimeout(() => {
+        navigate("/");
+      }, 300);
     } else {
       toast({
         title: "Erro no cadastro",
@@ -56,7 +65,9 @@ const SignUp = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 to-secondary/5 flex items-center justify-center p-4">
-      <div className="w-full max-w-md animate-fade-in">
+      <div className={`w-full max-w-md transition-all duration-500 ${
+        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+      }`}>
         <div className="text-center mb-8">
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center mx-auto mb-6 shadow-xl">
             <Wallet className="w-10 h-10 text-white" />

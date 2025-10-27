@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { LoyaltyCard } from "@/types/card";
@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { ArrowLeft, Upload } from "lucide-react";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
 
 const AddCard = () => {
   const navigate = useNavigate();
@@ -21,6 +22,12 @@ const AddCard = () => {
   const [points, setPoints] = useState(existingCard?.points.toString() || "0");
   const [storePin, setStorePin] = useState(existingCard?.storePin || "");
   const [logo, setLogo] = useState(existingCard?.logo || "");
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    // Trigger animation on mount
+    setIsVisible(true);
+  }, []);
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,9 +70,18 @@ const AddCard = () => {
     } else {
       setCards([...cards, newCard]);
       toast.success("Cartão adicionado com sucesso!");
+      
+      // Trigger confetti for new card
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 },
+      });
     }
 
-    navigate("/");
+    setTimeout(() => {
+      navigate("/");
+    }, 300);
   };
 
   return (
@@ -88,8 +104,10 @@ const AddCard = () => {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 animate-fade-in">
-        <Card className="p-6 border-0 shadow-md rounded-3xl">
+      <main className="container mx-auto px-4 py-6">
+        <Card className={`p-6 border-0 shadow-md rounded-3xl transition-all duration-500 ${
+          isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div className="space-y-2">
               <Label htmlFor="storeName" className="text-base font-semibold">Nome da Loja *</Label>

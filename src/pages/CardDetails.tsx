@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { LoyaltyCard } from "@/types/card";
@@ -26,18 +26,34 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Edit, Trash2, CreditCard, Plus } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Gift } from "lucide-react";
 import { toast } from "sonner";
+import confetti from "canvas-confetti";
+import { AnimatedCounter } from "@/components/AnimatedCounter";
+import { CelebrationDialog } from "@/components/CelebrationDialog";
 
 const CardDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
   const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
+  const [isCollectRewardOpen, setIsCollectRewardOpen] = useState(false);
+  const [celebrationDialog, setCelebrationDialog] = useState<{ open: boolean; type: "complete" | "reward" | null }>({ 
+    open: false, 
+    type: null 
+  });
   const [pinInput, setPinInput] = useState("");
   const [pointsToAdd, setPointsToAdd] = useState("");
+  const [collectPinInput, setCollectPinInput] = useState("");
+  const [animatedPoints, setAnimatedPoints] = useState(0);
 
   const card = cards.find((c) => c.id === id);
+
+  useEffect(() => {
+    if (card) {
+      setAnimatedPoints(card.points);
+    }
+  }, [card]);
 
   if (!card) {
     return (
@@ -56,6 +72,36 @@ const CardDetails = () => {
     navigate("/");
   };
 
+  const triggerConfetti = () => {
+    const duration = 3000;
+    const animationEnd = Date.now() + duration;
+    const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 0 };
+
+    const randomInRange = (min: number, max: number) => {
+      return Math.random() * (max - min) + min;
+    };
+
+    const interval: any = setInterval(() => {
+      const timeLeft = animationEnd - Date.now();
+
+      if (timeLeft <= 0) {
+        return clearInterval(interval);
+      }
+
+      const particleCount = 50 * (timeLeft / duration);
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.1, 0.3), y: Math.random() - 0.2 },
+      });
+      confetti({
+        ...defaults,
+        particleCount,
+        origin: { x: randomInRange(0.7, 0.9), y: Math.random() - 0.2 },
+      });
+    }, 250);
+  };
+
   const handleAddPoints = () => {
     if (!card) return;
 
@@ -70,16 +116,60 @@ const CardDetails = () => {
       return;
     }
 
+    const newPoints = card.points + points;
     const updatedCards = cards.map((c) =>
       c.id === id
-        ? { ...c, points: c.points + points, updatedAt: new Date().toISOString() }
+        ? { ...c, points: newPoints, updatedAt: new Date().toISOString() }
         : c
     );
     setCards(updatedCards);
-    toast.success(`${points} pontos adicionados com sucesso!`);
+    
+    // Trigger confetti animation
+    triggerConfetti();
+    
+    // Success toast
+    toast.success(`${points} ${points === 1 ? "ponto adicionado" : "pontos adicionados"} com sucesso!`);
+    
+    // Check if card is complete (10 points)
+    if (newPoints >= 10 && card.points < 10) {
+      setTimeout(() => {
+        setCelebrationDialog({ open: true, type: "complete" });
+      }, 500);
+    }
+    
     setIsAddPointsOpen(false);
     setPinInput("");
     setPointsToAdd("");
+  };
+
+  const handleCollectReward = () => {
+    if (!card) return;
+
+    if (collectPinInput !== card.storePin) {
+      toast.error("PIN incorreto");
+      return;
+    }
+
+    if (card.points < 10) {
+      toast.error("Você precisa de pelo menos 10 pontos para coletar a recompensa");
+      return;
+    }
+
+    const updatedCards = cards.map((c) =>
+      c.id === id
+        ? { ...c, points: 0, updatedAt: new Date().toISOString() }
+        : c
+    );
+    setCards(updatedCards);
+    
+    // Trigger confetti animation
+    triggerConfetti();
+    
+    // Show celebration dialog
+    setCelebrationDialog({ open: true, type: "reward" });
+    
+    setIsCollectRewardOpen(false);
+    setCollectPinInput("");
   };
 
   const cardColors = [
@@ -153,13 +243,22 @@ const CardDetails = () => {
             <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
               <p className="text-white/80 text-sm font-medium mb-1">Saldo de Pontos</p>
               <div className="flex items-baseline gap-2">
-                <span className="text-white text-4xl font-bold drop-shadow-md">
-                  {card.points}
-                </span>
+                <AnimatedCounter 
+                  value={animatedPoints} 
+                  className="text-white text-4xl font-bold drop-shadow-md"
+                />
                 <span className="text-white/90 text-lg font-medium">
-                  {card.points === 1 ? "ponto" : "pontos"}
+                  {animatedPoints === 1 ? "ponto" : "pontos"}
                 </span>
               </div>
+              {card.points >= 10 && (
+                <div className="mt-3 flex items-center gap-2 bg-white/20 rounded-xl px-3 py-2 animate-pulse">
+                  <Gift className="w-4 h-4 text-white" />
+                  <span className="text-white text-xs font-medium">
+                    Recompensa disponível!
+                  </span>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -194,8 +293,55 @@ const CardDetails = () => {
           </div>
         </Card>
 
-        {/* Add Points Button */}
-        <div className="mb-4">
+        {/* Add Points & Collect Reward Buttons */}
+        <div className="mb-4 space-y-3">
+          {card.points >= 10 && (
+            <Dialog open={isCollectRewardOpen} onOpenChange={setIsCollectRewardOpen}>
+              <DialogTrigger asChild>
+                <Button className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl bg-gradient-to-r from-success to-success/80" size="lg">
+                  <Gift className="w-5 h-5 mr-2" />
+                  Coletar Recompensa
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="rounded-3xl">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl">Coletar Recompensa</DialogTitle>
+                  <DialogDescription>
+                    Digite o PIN da loja para coletar sua recompensa
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="collectPin" className="text-base">PIN da Loja</Label>
+                    <Input
+                      id="collectPin"
+                      type="password"
+                      inputMode="numeric"
+                      maxLength={4}
+                      value={collectPinInput}
+                      onChange={(e) => setCollectPinInput(e.target.value.replace(/\D/g, ""))}
+                      placeholder="0000"
+                      className="h-14 text-lg text-center tracking-widest rounded-2xl"
+                    />
+                  </div>
+                </div>
+                <DialogFooter className="gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => {
+                      setIsCollectRewardOpen(false);
+                      setCollectPinInput("");
+                    }}
+                    className="rounded-2xl"
+                  >
+                    Cancelar
+                  </Button>
+                  <Button onClick={handleCollectReward} className="rounded-2xl">Confirmar</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          )}
+          
           <Dialog open={isAddPointsOpen} onOpenChange={setIsAddPointsOpen}>
             <DialogTrigger asChild>
               <Button className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl" size="lg">
@@ -289,6 +435,16 @@ const CardDetails = () => {
             </AlertDialogContent>
           </AlertDialog>
         </div>
+
+        {/* Celebration Dialog */}
+        {celebrationDialog.type && (
+          <CelebrationDialog
+            open={celebrationDialog.open}
+            onClose={() => setCelebrationDialog({ open: false, type: null })}
+            storeName={card.storeName}
+            type={celebrationDialog.type}
+          />
+        )}
       </main>
     </div>
   );
