@@ -1,5 +1,5 @@
 import { useNavigate } from 'react-router-dom';
-import { UserCircle, LogOut, MapPin, Award } from 'lucide-react';
+import { UserCircle, LogOut, MapPin, Award, Store } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BottomNavigation } from '@/components/BottomNavigation';
@@ -51,6 +51,29 @@ export default function Profile() {
                 <p className="text-sm text-muted-foreground">Membro desde 2025</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Store Panel Card */}
+        <Card className="bg-card">
+          <CardHeader>
+            <CardTitle className="text-foreground flex items-center gap-2">
+              <Store className="w-5 h-5" />
+              Modo Empresa
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground mb-4">
+              Acesse o painel da loja para escanear QR Codes de clientes e gerenciar pontos
+            </p>
+            <Button
+              onClick={() => navigate('/store-panel')}
+              variant="outline"
+              className="w-full"
+            >
+              <Store className="w-4 h-4 mr-2" />
+              Acessar Painel da Loja
+            </Button>
           </CardContent>
         </Card>
 

@@ -10,6 +10,7 @@ import CardDetails from "./pages/CardDetails";
 import Achievements from "./pages/Achievements";
 import NearbyStores from "./pages/NearbyStores";
 import Profile from "./pages/Profile";
+import StorePanel from "./pages/StorePanel";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -46,6 +47,7 @@ const App = () => (
           <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
           <Route path="/nearby-stores" element={<ProtectedRoute><NearbyStores /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/store-panel" element={<ProtectedRoute><StorePanel /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

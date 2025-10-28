@@ -27,11 +27,12 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Edit, Trash2, Plus, Gift } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Gift, QrCode } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
 import { CelebrationDialog } from "@/components/CelebrationDialog";
+import { QRCodeDisplay } from "@/components/QRCodeDisplay";
 
 const CardDetails = () => {
   const navigate = useNavigate();
@@ -48,6 +49,7 @@ const CardDetails = () => {
   const [pointsToAdd, setPointsToAdd] = useState("");
   const [collectPinInput, setCollectPinInput] = useState("");
   const [animatedPoints, setAnimatedPoints] = useState(0);
+  const [showQRCode, setShowQRCode] = useState(false);
 
   const card = cards.find((c) => c.id === id);
 
@@ -301,6 +303,17 @@ const CardDetails = () => {
           </div>
         </Card>
 
+        {/* QR Code Button */}
+        <Button
+          onClick={() => setShowQRCode(true)}
+          variant="outline"
+          className="w-full h-14 text-lg rounded-2xl shadow-md hover:shadow-lg mb-4"
+          size="lg"
+        >
+          <QrCode className="w-5 h-5 mr-2" />
+          Mostrar QR Code
+        </Button>
+
         {/* Add Points & Collect Reward Buttons */}
         <div className="mb-4 space-y-3">
           {card.points >= 10 && (
@@ -453,6 +466,13 @@ const CardDetails = () => {
             type={celebrationDialog.type}
           />
         )}
+
+        {/* QR Code Display */}
+        <QRCodeDisplay
+          open={showQRCode}
+          onClose={() => setShowQRCode(false)}
+          card={card}
+        />
       </main>
     </div>
   );
