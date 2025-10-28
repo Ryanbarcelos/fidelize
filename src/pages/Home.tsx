@@ -7,32 +7,22 @@ import { CardItem } from "@/components/CardItem";
 import { SearchBar } from "@/components/SearchBar";
 import { SortSelect } from "@/components/SortSelect";
 import { Button } from "@/components/ui/button";
-import { Plus, Wallet, LogOut, Trophy } from "lucide-react";
+import { Plus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
+import { BottomNavigation } from "@/components/BottomNavigation";
 
 const Home = () => {
   const navigate = useNavigate();
-  const { currentUser, logout } = useAuth();
-  const { toast } = useToast();
+  const { currentUser } = useAuth();
   const [cards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
-  const { updateAchievements, getCompletedCount } = useAchievements();
+  const { updateAchievements } = useAchievements();
 
   // Update achievements whenever cards change
   useEffect(() => {
     updateAchievements();
   }, [cards, updateAchievements]);
-
-  const handleLogout = () => {
-    logout();
-    toast({
-      title: "Até logo!",
-      description: "Você saiu do Fidelize",
-    });
-    navigate("/login");
-  };
 
   const filteredAndSortedCards = useMemo(() => {
     let filtered = cards.filter((card) =>
@@ -54,42 +44,17 @@ const Home = () => {
   }, [cards, searchQuery, sortBy]);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* Modern Header */}
       <header className="bg-white dark:bg-card border-b sticky top-0 z-10 backdrop-blur-sm bg-white/95 dark:bg-card/95">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-md">
-                <Wallet className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-foreground">Fidelize</h1>
-                <p className="text-xs text-muted-foreground">Olá, {currentUser?.name}</p>
-              </div>
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-md">
+              <Wallet className="w-6 h-6 text-white" />
             </div>
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={() => navigate("/achievements")}
-                className="text-muted-foreground hover:text-foreground relative"
-              >
-                <Trophy className="w-4 h-4" />
-                {getCompletedCount() > 0 && (
-                  <span className="absolute -top-1 -right-1 w-4 h-4 bg-success text-white text-xs rounded-full flex items-center justify-center">
-                    {getCompletedCount()}
-                  </span>
-                )}
-              </Button>
-              <Button 
-                variant="ghost" 
-                size="sm"
-                onClick={handleLogout}
-                className="text-muted-foreground hover:text-foreground"
-              >
-                <LogOut className="w-4 h-4" />
-              </Button>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Fidelize</h1>
+              <p className="text-xs text-muted-foreground">Olá, {currentUser?.name}</p>
             </div>
           </div>
         </div>
@@ -145,7 +110,7 @@ const Home = () => {
       </main>
 
       {/* Floating Action Button */}
-      <div className="fixed bottom-8 right-8 z-20">
+      <div className="fixed bottom-20 right-8 z-20">
         <Button
           size="lg"
           onClick={() => navigate("/add-card")}
@@ -154,6 +119,8 @@ const Home = () => {
           <Plus className="w-7 h-7" />
         </Button>
       </div>
+
+      <BottomNavigation />
     </div>
   );
 };

@@ -8,6 +8,8 @@ import Home from "./pages/Home";
 import AddCard from "./pages/AddCard";
 import CardDetails from "./pages/CardDetails";
 import Achievements from "./pages/Achievements";
+import NearbyStores from "./pages/NearbyStores";
+import Profile from "./pages/Profile";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -42,6 +44,8 @@ const App = () => (
           <Route path="/edit-card/:id" element={<ProtectedRoute><AddCard /></ProtectedRoute>} />
           <Route path="/card/:id" element={<ProtectedRoute><CardDetails /></ProtectedRoute>} />
           <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
+          <Route path="/nearby-stores" element={<ProtectedRoute><NearbyStores /></ProtectedRoute>} />
+          <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

@@ -1,12 +1,10 @@
-import { useNavigate } from "react-router-dom";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Trophy } from "lucide-react";
+import { Trophy } from "lucide-react";
 import { useAchievements } from "@/hooks/useAchievements";
 import { AchievementCard } from "@/components/AchievementCard";
 import { Card } from "@/components/ui/card";
+import { BottomNavigation } from "@/components/BottomNavigation";
 
 const Achievements = () => {
-  const navigate = useNavigate();
   const { achievements, progress, getProgress, getCompletedCount } = useAchievements();
   const completedCount = getCompletedCount();
 
@@ -15,17 +13,7 @@ const Achievements = () => {
       {/* Header */}
       <header className="bg-card border-b sticky top-0 z-10">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/")}
-              className="text-foreground"
-            >
-              <ArrowLeft className="w-5 h-5" />
-            </Button>
-            <h1 className="text-xl font-bold text-foreground">Metas e Conquistas</h1>
-          </div>
+          <h1 className="text-xl font-bold text-foreground">Metas e Conquistas</h1>
         </div>
       </header>
 
@@ -97,6 +85,8 @@ const Achievements = () => {
           </div>
         )}
       </main>
+
+      <BottomNavigation />
     </div>
   );
 };

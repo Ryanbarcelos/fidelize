@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAchievements } from "@/hooks/useAchievements";
 import { LoyaltyCard } from "@/types/card";
@@ -13,13 +13,17 @@ import confetti from "canvas-confetti";
 
 const AddCard = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const { id } = useParams();
   const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
   const { updateAchievements } = useAchievements();
   
+  // Get pre-filled store name from navigation state (from NearbyStores)
+  const prefilledStoreName = location.state?.storeName || "";
+  
   const existingCard = id ? cards.find((c) => c.id === id) : null;
   
-  const [storeName, setStoreName] = useState(existingCard?.storeName || "");
+  const [storeName, setStoreName] = useState(existingCard?.storeName || prefilledStoreName);
   const [cardNumber, setCardNumber] = useState(existingCard?.cardNumber || "");
   const [points, setPoints] = useState(existingCard?.points.toString() || "0");
   const [storePin, setStorePin] = useState(existingCard?.storePin || "");
