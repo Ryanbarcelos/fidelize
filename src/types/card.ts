@@ -1,3 +1,5 @@
+import { Transaction } from "./transaction";
+
 export interface LoyaltyCard {
   id: string;
   storeName: string;
@@ -8,4 +10,5 @@ export interface LoyaltyCard {
   logo?: string;
   createdAt: string;
   updatedAt: string;
+  transactions?: Transaction[];
 }

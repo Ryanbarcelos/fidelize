@@ -109,9 +109,25 @@ const StorePanel = () => {
     }
 
     const newPoints = card.points + points;
+
+    // Create transaction record
+    const newTransaction = {
+      id: Date.now().toString(),
+      cardId: card.id,
+      type: "points_added" as const,
+      points: points,
+      storeName: card.storeName,
+      timestamp: new Date().toISOString(),
+    };
+
     const updatedCards = cards.map((c) =>
       c.id === scannedData.cardId
-        ? { ...c, points: newPoints, updatedAt: new Date().toISOString() }
+        ? { 
+            ...c, 
+            points: newPoints, 
+            updatedAt: new Date().toISOString(),
+            transactions: [...(c.transactions || []), newTransaction]
+          }
         : c
     );
     setCards(updatedCards);
@@ -148,9 +164,24 @@ const StorePanel = () => {
       return;
     }
 
+    // Create transaction record
+    const newTransaction = {
+      id: Date.now().toString(),
+      cardId: card.id,
+      type: "reward_collected" as const,
+      points: 10,
+      storeName: card.storeName,
+      timestamp: new Date().toISOString(),
+    };
+
     const updatedCards = cards.map((c) =>
       c.id === scannedData.cardId
-        ? { ...c, points: 0, updatedAt: new Date().toISOString() }
+        ? { 
+            ...c, 
+            points: 0, 
+            updatedAt: new Date().toISOString(),
+            transactions: [...(c.transactions || []), newTransaction]
+          }
         : c
     );
     setCards(updatedCards);

@@ -27,7 +27,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Edit, Trash2, Plus, Gift, QrCode } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Plus, Gift, QrCode, History } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { AnimatedCounter } from "@/components/AnimatedCounter";
@@ -121,9 +121,25 @@ const CardDetails = () => {
     }
 
     const newPoints = card.points + points;
+    
+    // Create transaction record
+    const newTransaction = {
+      id: Date.now().toString(),
+      cardId: card.id,
+      type: "points_added" as const,
+      points: points,
+      storeName: card.storeName,
+      timestamp: new Date().toISOString(),
+    };
+    
     const updatedCards = cards.map((c) =>
       c.id === id
-        ? { ...c, points: newPoints, updatedAt: new Date().toISOString() }
+        ? { 
+            ...c, 
+            points: newPoints, 
+            updatedAt: new Date().toISOString(),
+            transactions: [...(c.transactions || []), newTransaction]
+          }
         : c
     );
     setCards(updatedCards);
@@ -162,9 +178,24 @@ const CardDetails = () => {
       return;
     }
 
+    // Create transaction record
+    const newTransaction = {
+      id: Date.now().toString(),
+      cardId: card.id,
+      type: "reward_collected" as const,
+      points: 10,
+      storeName: card.storeName,
+      timestamp: new Date().toISOString(),
+    };
+
     const updatedCards = cards.map((c) =>
       c.id === id
-        ? { ...c, points: 0, updatedAt: new Date().toISOString() }
+        ? { 
+            ...c, 
+            points: 0, 
+            updatedAt: new Date().toISOString(),
+            transactions: [...(c.transactions || []), newTransaction]
+          }
         : c
     );
     setCards(updatedCards);
@@ -312,6 +343,17 @@ const CardDetails = () => {
         >
           <QrCode className="w-5 h-5 mr-2" />
           Mostrar QR Code
+        </Button>
+
+        {/* Transaction History Button */}
+        <Button
+          onClick={() => navigate(`/card/${id}/history`)}
+          variant="outline"
+          className="w-full h-14 text-lg rounded-2xl shadow-md hover:shadow-lg mb-4"
+          size="lg"
+        >
+          <History className="w-5 h-5 mr-2" />
+          Ver histórico
         </Button>
 
         {/* Add Points & Collect Reward Buttons */}
