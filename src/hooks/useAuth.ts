@@ -4,6 +4,9 @@ interface User {
   id: string;
   name: string;
   email: string;
+  accountType: 'customer' | 'business';
+  storeName?: string;
+  cnpj?: string;
 }
 
 interface AuthUser extends User {
@@ -22,7 +25,13 @@ export function useAuth() {
     setIsLoading(false);
   }, []);
 
-  const signUp = (name: string, email: string, password: string): { success: boolean; error?: string } => {
+  const signUp = (
+    name: string, 
+    email: string, 
+    password: string,
+    accountType: 'customer' | 'business' = 'customer',
+    businessDetails?: { storeName?: string; cnpj?: string }
+  ): { success: boolean; error?: string } => {
     const users = JSON.parse(localStorage.getItem('fidelize-users') || '[]') as AuthUser[];
     
     if (users.find(u => u.email === email)) {
@@ -34,6 +43,8 @@ export function useAuth() {
       name,
       email,
       password,
+      accountType,
+      ...(accountType === 'business' && businessDetails),
     };
 
     users.push(newUser);

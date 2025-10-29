@@ -20,6 +20,18 @@ const Login = () => {
     setIsVisible(true);
   }, []);
 
+  const { currentUser } = useAuth();
+
+  useEffect(() => {
+    if (currentUser) {
+      if (currentUser.accountType === 'business') {
+        navigate("/business-dashboard");
+      } else {
+        navigate("/");
+      }
+    }
+  }, [currentUser, navigate]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     

@@ -11,6 +11,7 @@ import Achievements from "./pages/Achievements";
 import NearbyStores from "./pages/NearbyStores";
 import Profile from "./pages/Profile";
 import StorePanel from "./pages/StorePanel";
+import BusinessDashboard from "./pages/BusinessDashboard";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -31,6 +32,16 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
+const HomeRedirect = () => {
+  const { currentUser } = useAuth();
+  
+  if (currentUser?.accountType === 'business') {
+    return <Navigate to="/business-dashboard" replace />;
+  }
+  
+  return <Home />;
+};
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
@@ -40,7 +51,8 @@ const App = () => (
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/signup" element={<SignUp />} />
-          <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
+          <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
+          <Route path="/business-dashboard" element={<ProtectedRoute><BusinessDashboard /></ProtectedRoute>} />
           <Route path="/add-card" element={<ProtectedRoute><AddCard /></ProtectedRoute>} />
           <Route path="/edit-card/:id" element={<ProtectedRoute><AddCard /></ProtectedRoute>} />
           <Route path="/card/:id" element={<ProtectedRoute><CardDetails /></ProtectedRoute>} />

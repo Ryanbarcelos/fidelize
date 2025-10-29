@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAchievements } from "@/hooks/useAchievements";
+import { useAuth } from "@/hooks/useAuth";
 import { LoyaltyCard } from "@/types/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +16,7 @@ const AddCard = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { id } = useParams();
+  const { currentUser } = useAuth();
   const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
   const { updateAchievements } = useAchievements();
   
@@ -62,6 +64,7 @@ const AddCard = () => {
     const newCard: LoyaltyCard = {
       id: id || Date.now().toString(),
       storeName: storeName.trim(),
+      userName: currentUser?.name || "Usuário",
       cardNumber: cardNumber.trim(),
       points: parseInt(points) || 0,
       storePin: storePin,
