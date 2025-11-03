@@ -13,6 +13,8 @@ import NearbyStores from "./pages/NearbyStores";
 import Profile from "./pages/Profile";
 import StorePanel from "./pages/StorePanel";
 import BusinessDashboard from "./pages/BusinessDashboard";
+import Promotions from "./pages/Promotions";
+import Notifications from "./pages/Notifications";
 import Login from "./pages/Login";
 import SignUp from "./pages/SignUp";
 import NotFound from "./pages/NotFound";
@@ -54,6 +56,8 @@ const App = () => (
           <Route path="/signup" element={<SignUp />} />
           <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
           <Route path="/business-dashboard" element={<ProtectedRoute><BusinessDashboard /></ProtectedRoute>} />
+          <Route path="/promotions" element={<ProtectedRoute><Promotions /></ProtectedRoute>} />
+          <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/add-card" element={<ProtectedRoute><AddCard /></ProtectedRoute>} />
           <Route path="/edit-card/:id" element={<ProtectedRoute><AddCard /></ProtectedRoute>} />
           <Route path="/card/:id" element={<ProtectedRoute><CardDetails /></ProtectedRoute>} />

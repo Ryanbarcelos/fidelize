@@ -15,7 +15,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { Store, Users, Plus, Gift, LogOut, History } from "lucide-react";
+import { Store, Users, Plus, Gift, LogOut, History, Megaphone } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -256,6 +256,24 @@ const BusinessDashboard = () => {
               <p className="text-sm text-muted-foreground">Total de Clientes</p>
               <p className="text-2xl font-bold text-foreground">{customerCards.length}</p>
             </div>
+          </div>
+        </Card>
+
+        {/* Promotions Card */}
+        <Card className="p-6 mb-6 border-0 shadow-md hover:shadow-lg transition-shadow cursor-pointer" onClick={() => navigate("/promotions")}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Megaphone className="w-6 h-6 text-primary" />
+              </div>
+              <div>
+                <p className="text-base font-semibold text-foreground">Promoções da Loja</p>
+                <p className="text-sm text-muted-foreground">Crie e gerencie suas promoções</p>
+              </div>
+            </div>
+            <Button variant="ghost" size="icon" className="text-primary">
+              <Plus className="w-5 h-5" />
+            </Button>
           </div>
         </Card>
 
