@@ -12,6 +12,8 @@ import Achievements from "./pages/Achievements";
 import NearbyStores from "./pages/NearbyStores";
 import Profile from "./pages/Profile";
 import StorePanel from "./pages/StorePanel";
+import StoreClients from "./pages/StoreClients";
+import StorePromotions from "./pages/StorePromotions";
 import BusinessDashboard from "./pages/BusinessDashboard";
 import Promotions from "./pages/Promotions";
 import Notifications from "./pages/Notifications";
@@ -56,6 +58,9 @@ const App = () => (
           <Route path="/signup" element={<SignUp />} />
           <Route path="/" element={<ProtectedRoute><HomeRedirect /></ProtectedRoute>} />
           <Route path="/business-dashboard" element={<ProtectedRoute><BusinessDashboard /></ProtectedRoute>} />
+          <Route path="/store-panel" element={<ProtectedRoute><StorePanel /></ProtectedRoute>} />
+          <Route path="/store-clients" element={<ProtectedRoute><StoreClients /></ProtectedRoute>} />
+          <Route path="/store-promotions" element={<ProtectedRoute><StorePromotions /></ProtectedRoute>} />
           <Route path="/promotions" element={<ProtectedRoute><Promotions /></ProtectedRoute>} />
           <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
           <Route path="/add-card" element={<ProtectedRoute><AddCard /></ProtectedRoute>} />
@@ -65,7 +70,6 @@ const App = () => (
           <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
           <Route path="/nearby-stores" element={<ProtectedRoute><NearbyStores /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
-          <Route path="/store-panel" element={<ProtectedRoute><StorePanel /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>

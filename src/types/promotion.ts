@@ -1,13 +1,15 @@
 export interface Promotion {
   id: string;
-  storeId: string;
+  storeId?: string;
   storeName: string;
   title: string;
   description: string;
   startDate: string;
   endDate: string;
   imageUrl?: string;
+  isActive?: boolean;
   createdAt: string;
+  updatedAt?: string;
 }
 
 export interface Notification {

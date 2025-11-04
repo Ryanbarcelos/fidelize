@@ -12,6 +12,23 @@ export interface StoreWithDistance extends Store {
   distance: number;
 }
 
+export interface StoreStats {
+  totalClients: number;
+  pointsAddedToday: number;
+  rewardsCollected: number;
+  weeklyActivity: number[];
+}
+
+export interface StoreClient {
+  id: string;
+  name: string;
+  email: string;
+  cardId: string;
+  points: number;
+  lastVisit: string;
+  totalRewards: number;
+}
+
 // Mock stores for demonstration (São Paulo area coordinates)
 export const MOCK_STORES: Store[] = [
   {
