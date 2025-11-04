@@ -2,6 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "@/hooks/useAuth";
 import { useAchievements } from "@/hooks/useAchievements";
+import { useGamification } from "@/hooks/useGamification";
 import { LoyaltyCard } from "@/types/card";
 import { CardItem } from "@/components/CardItem";
 import { SearchBar } from "@/components/SearchBar";
@@ -18,6 +19,7 @@ const Home = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const { updateAchievements } = useAchievements();
+  const { level, xpProgress } = useGamification();
 
   // Update achievements whenever cards change
   useEffect(() => {
@@ -45,16 +47,31 @@ const Home = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Modern Header */}
+      {/* Modern Header with Level */}
       <header className="bg-white dark:bg-card border-b sticky top-0 z-10 backdrop-blur-sm bg-white/95 dark:bg-card/95">
         <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-md">
-              <Wallet className="w-6 h-6 text-white" />
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-md">
+                <Wallet className="w-6 h-6 text-white" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-foreground">Fidelize</h1>
+                <p className="text-xs text-muted-foreground">Olá, {currentUser?.name}</p>
+              </div>
             </div>
-            <div>
-              <h1 className="text-xl font-bold text-foreground">Fidelize</h1>
-              <p className="text-xs text-muted-foreground">Olá, {currentUser?.name}</p>
+            
+            {/* Level Display */}
+            <div className="flex items-center gap-2 bg-gradient-to-br from-primary/10 to-primary-light/10 rounded-xl px-3 py-2 border border-primary/20">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-md">
+                <span className="text-white text-xs font-bold">{level}</span>
+              </div>
+              <div className="text-left">
+                <p className="text-xs font-medium text-foreground">Nível {level}</p>
+                <p className="text-xs text-muted-foreground">
+                  {xpProgress.current}/{xpProgress.needed} XP
+                </p>
+              </div>
             </div>
           </div>
         </div>

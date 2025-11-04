@@ -2,7 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAchievements } from "@/hooks/useAchievements";
+import { useGamification } from "@/hooks/useGamification";
 import { LoyaltyCard } from "@/types/card";
+import { ProgressBar } from "@/components/ProgressBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,6 +41,7 @@ const CardDetails = () => {
   const { id } = useParams();
   const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
   const { updateAchievements, incrementRewardsCollected } = useAchievements();
+  const { addReward } = useGamification();
   const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
   const [isCollectRewardOpen, setIsCollectRewardOpen] = useState(false);
   const [celebrationDialog, setCelebrationDialog] = useState<{ open: boolean; type: "complete" | "reward" | null }>({ 
@@ -203,11 +206,20 @@ const CardDetails = () => {
     // Trigger confetti animation
     triggerConfetti();
     
-    // Show celebration dialog
-    setCelebrationDialog({ open: true, type: "reward" });
+    // Show celebration dialog with XP message
+    setTimeout(() => {
+      setCelebrationDialog({ open: true, type: "reward" });
+      toast.success("🏆 Recompensa resgatada com sucesso! +1 XP", {
+        description: "Continue coletando recompensas para subir de nível!",
+        duration: 4000,
+      });
+    }, 300);
     
     // Increment rewards collected achievement
     incrementRewardsCollected();
+    
+    // Add reward to gamification system
+    addReward();
     
     setIsCollectRewardOpen(false);
     setCollectPinInput("");
@@ -280,23 +292,31 @@ const CardDetails = () => {
               </p>
             )}
 
-            {/* Points Display */}
-            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20">
-              <p className="text-white/80 text-sm font-medium mb-1">Saldo de Pontos</p>
-              <div className="flex items-baseline gap-2">
-                <AnimatedCounter 
-                  value={animatedPoints} 
-                  className="text-white text-4xl font-bold drop-shadow-md"
-                />
-                <span className="text-white/90 text-lg font-medium">
-                  {animatedPoints === 1 ? "ponto" : "pontos"}
-                </span>
+            {/* Points Display with Progress */}
+            <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-4 border border-white/20 space-y-4">
+              <div>
+                <p className="text-white/80 text-sm font-medium mb-1">Saldo de Pontos</p>
+                <div className="flex items-baseline gap-2">
+                  <AnimatedCounter 
+                    value={animatedPoints} 
+                    className="text-white text-4xl font-bold drop-shadow-md"
+                  />
+                  <span className="text-white/90 text-lg font-medium">
+                    {animatedPoints === 1 ? "ponto" : "pontos"}
+                  </span>
+                </div>
               </div>
+              
+              <ProgressBar 
+                current={Math.min(card.points, 10)} 
+                max={10}
+              />
+              
               {card.points >= 10 && (
-                <div className="mt-3 flex items-center gap-2 bg-white/20 rounded-xl px-3 py-2 animate-pulse">
+                <div className="flex items-center gap-2 bg-success/20 backdrop-blur-sm rounded-xl px-3 py-2 border border-success/30 animate-pulse">
                   <Gift className="w-4 h-4 text-white" />
                   <span className="text-white text-xs font-medium">
-                    Recompensa disponível!
+                    🎉 Cartão completo! Você já pode resgatar sua recompensa!
                   </span>
                 </div>
               )}
