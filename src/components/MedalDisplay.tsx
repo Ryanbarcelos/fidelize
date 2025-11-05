@@ -13,7 +13,7 @@ export const MedalDisplay = ({ medals, unlockedMedals, className }: MedalDisplay
     unlockedMedals.some(m => m.id === medalId);
 
   return (
-    <div className={cn("grid grid-cols-2 gap-4", className)}>
+    <div className={cn("grid grid-cols-2 gap-5", className)}>
       {medals.map((medal) => {
         const unlocked = isUnlocked(medal.id);
         
@@ -21,40 +21,40 @@ export const MedalDisplay = ({ medals, unlockedMedals, className }: MedalDisplay
           <Card
             key={medal.id}
             className={cn(
-              "p-4 border-0 shadow-md rounded-2xl transition-all",
+              "p-6 border-0 shadow-premium-lg rounded-3xl transition-all duration-500",
               unlocked
-                ? `bg-gradient-to-br ${medal.color}`
+                ? `bg-gradient-to-br ${medal.color} hover-scale`
                 : "bg-muted/30 opacity-50"
             )}
           >
-            <div className="flex flex-col items-center justify-center text-center space-y-2">
+            <div className="flex flex-col items-center justify-center text-center space-y-3">
               <div className={cn(
-                "w-16 h-16 rounded-2xl flex items-center justify-center shadow-lg",
+                "w-20 h-20 rounded-3xl flex items-center justify-center shadow-premium",
                 unlocked 
-                  ? "bg-white/20 backdrop-blur-sm border border-white/30" 
+                  ? "bg-white/20 backdrop-blur-md border-2 border-white/40" 
                   : "bg-muted"
               )}>
-                <span className="text-4xl filter drop-shadow-md">
+                <span className="text-5xl filter drop-shadow-lg">
                   {unlocked ? medal.icon : "🔒"}
                 </span>
               </div>
               <div>
                 <p className={cn(
-                  "font-bold text-sm",
-                  unlocked ? "text-white" : "text-muted-foreground"
+                  "font-bold text-base mb-1",
+                  unlocked ? "text-white drop-shadow-md" : "text-muted-foreground"
                 )}>
                   {medal.name}
                 </p>
                 <p className={cn(
-                  "text-xs mt-1",
-                  unlocked ? "text-white/90" : "text-muted-foreground"
+                  "text-xs leading-relaxed",
+                  unlocked ? "text-white/90 drop-shadow-sm" : "text-muted-foreground"
                 )}>
                   {medal.description}
                 </p>
               </div>
               {unlocked && (
-                <div className="bg-white/20 backdrop-blur-sm rounded-full px-3 py-1 border border-white/30">
-                  <span className="text-white text-xs font-medium">
+                <div className="bg-white/25 backdrop-blur-md rounded-2xl px-4 py-1.5 border border-white/40 shadow-lg">
+                  <span className="text-white text-xs font-bold drop-shadow-sm">
                     Desbloqueada ✓
                   </span>
                 </div>

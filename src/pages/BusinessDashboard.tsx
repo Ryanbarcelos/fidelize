@@ -81,22 +81,28 @@ const BusinessDashboard = () => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="bg-gradient-to-br from-primary to-primary-light text-white p-6 shadow-xl">
-        <div className="container mx-auto">
-          <div className="flex items-center gap-4 mb-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30 shadow-lg">
+      {/* Premium Business Header */}
+      <header className="gradient-glow text-white p-8 shadow-premium-lg relative overflow-hidden">
+        {/* Decorative elements */}
+        <div className="absolute inset-0 opacity-10">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white rounded-full -translate-y-1/2 translate-x-1/2 blur-3xl" />
+          <div className="absolute bottom-0 left-0 w-48 h-48 bg-white rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl" />
+        </div>
+        
+        <div className="container mx-auto relative">
+          <div className="flex items-center gap-5 mb-4">
+            <div className="w-20 h-20 rounded-3xl bg-white/20 backdrop-blur-md flex items-center justify-center border-2 border-white/40 shadow-premium-lg">
               {currentUser?.storeName ? (
-                <span className="text-white text-2xl font-bold drop-shadow-md">
+                <span className="text-white text-3xl font-bold drop-shadow-lg">
                   {getInitial(currentUser.storeName)}
                 </span>
               ) : (
-                <Store className="w-8 h-8" />
+                <Store className="w-10 h-10" />
               )}
             </div>
             <div className="flex-1">
-              <p className="text-white/90 text-sm font-medium">Painel da Loja</p>
-              <h1 className="text-2xl font-bold drop-shadow-md">
+              <p className="text-white/90 text-sm font-semibold mb-1">Painel da Loja</p>
+              <h1 className="text-3xl font-bold drop-shadow-lg tracking-tight">
                 {currentUser?.storeName || "Minha Loja"}
               </h1>
             </div>
@@ -104,69 +110,69 @@ const BusinessDashboard = () => {
               variant="ghost"
               size="icon"
               onClick={() => navigate("/profile")}
-              className="text-white hover:bg-white/20"
+              className="text-white hover:bg-white/20 rounded-2xl w-12 h-12"
             >
-              <UserCircle className="w-6 h-6" />
+              <UserCircle className="w-7 h-7" />
             </Button>
           </div>
         </div>
       </header>
 
-      <main className={`container mx-auto px-4 py-6 space-y-6 transition-all duration-500 ${
+      <main className={`container mx-auto px-4 py-8 space-y-6 transition-all duration-700 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}>
-        {/* Stats Cards */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card className="p-4 border-0 shadow-lg rounded-2xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-blue-500 flex items-center justify-center">
-                <Users className="w-5 h-5 text-white" />
+        {/* Premium Stats Cards */}
+        <div className="grid grid-cols-2 gap-5 fade-in">
+          <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 hover-scale">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-blue-500 flex items-center justify-center shadow-lg">
+                <Users className="w-6 h-6 text-white" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">Clientes</p>
+              <p className="text-sm font-semibold text-muted-foreground">Clientes</p>
             </div>
             <AnimatedCounter 
               value={storeStats.totalClients} 
-              className="text-3xl font-bold text-foreground"
+              className="text-4xl font-bold text-foreground tracking-tight"
             />
           </Card>
 
-          <Card className="p-4 border-0 shadow-lg rounded-2xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-green-500 flex items-center justify-center">
-                <TrendingUp className="w-5 h-5 text-white" />
+          <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 hover-scale">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-green-500 flex items-center justify-center shadow-lg">
+                <TrendingUp className="w-6 h-6 text-white" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">Hoje</p>
+              <p className="text-sm font-semibold text-muted-foreground">Hoje</p>
             </div>
-            <div className="flex items-baseline gap-1">
+            <div className="flex items-baseline gap-2">
               <AnimatedCounter 
                 value={storeStats.pointsAddedToday} 
-                className="text-3xl font-bold text-foreground"
+                className="text-4xl font-bold text-foreground tracking-tight"
               />
-              <span className="text-sm text-muted-foreground">pts</span>
+              <span className="text-sm font-medium text-muted-foreground">pts</span>
             </div>
           </Card>
 
-          <Card className="p-4 border-0 shadow-lg rounded-2xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 col-span-2">
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center">
-                <Gift className="w-5 h-5 text-white" />
+          <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 col-span-2 hover-scale">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-purple-500 flex items-center justify-center shadow-lg">
+                <Gift className="w-6 h-6 text-white" />
               </div>
-              <p className="text-sm font-medium text-muted-foreground">Recompensas Coletadas</p>
+              <p className="text-sm font-semibold text-muted-foreground">Recompensas Coletadas</p>
             </div>
             <AnimatedCounter 
               value={storeStats.rewardsCollected} 
-              className="text-3xl font-bold text-foreground"
+              className="text-4xl font-bold text-foreground tracking-tight"
             />
           </Card>
         </div>
 
-        {/* Weekly Activity Chart */}
-        <Card className="p-6 border-0 shadow-lg rounded-3xl">
-          <h3 className="font-semibold text-foreground mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
+        {/* Premium Weekly Activity Chart */}
+        <Card className="p-8 border-0 shadow-premium-lg rounded-3xl slide-in">
+          <h3 className="font-bold text-foreground mb-6 text-xl flex items-center gap-2">
+            <BarChart3 className="w-6 h-6 text-primary" />
             Atividade Semanal
           </h3>
-          <div className="flex items-end justify-between h-32 gap-2">
+          <div className="flex items-end justify-between h-40 gap-3">
             {storeStats.weeklyActivity.map((points, index) => {
               const maxPoints = Math.max(...storeStats.weeklyActivity, 1);
               const height = (points / maxPoints) * 100;
@@ -174,35 +180,35 @@ const BusinessDashboard = () => {
               const dayIndex = (new Date().getDay() - 6 + index + 7) % 7;
               
               return (
-                <div key={index} className="flex-1 flex flex-col items-center gap-2">
-                  <div className="w-full bg-muted rounded-t-lg relative overflow-hidden" style={{ height: '100%' }}>
+                <div key={index} className="flex-1 flex flex-col items-center gap-3">
+                  <div className="w-full bg-muted/50 rounded-t-2xl relative overflow-hidden shadow-inner" style={{ height: '100%' }}>
                     <div 
-                      className="absolute bottom-0 w-full bg-gradient-to-t from-primary to-primary-light rounded-t-lg transition-all duration-500"
+                      className="absolute bottom-0 w-full bg-gradient-to-t from-primary via-primary-light to-primary-glow rounded-t-2xl transition-all duration-700 shadow-glow"
                       style={{ height: `${height}%` }}
                     />
                   </div>
-                  <span className="text-xs text-muted-foreground font-medium">{days[dayIndex]}</span>
+                  <span className="text-xs text-muted-foreground font-semibold">{days[dayIndex]}</span>
                 </div>
               );
             })}
           </div>
         </Card>
 
-        {/* Main Actions */}
-        <div className="space-y-3">
+        {/* Premium Main Actions */}
+        <div className="space-y-4 slide-in" style={{ animationDelay: '100ms' }}>
           <Button
             onClick={() => navigate("/store-panel")}
-            className="w-full h-16 text-lg rounded-2xl shadow-lg hover:shadow-xl"
+            className="w-full h-16 text-lg rounded-3xl shadow-premium-lg hover:shadow-glow transition-all hover-scale-lg gradient-glow"
             size="lg"
           >
-            <QrCode className="w-6 h-6 mr-2" />
+            <QrCode className="w-6 h-6 mr-3" />
             Adicionar Pontos (QR Code)
           </Button>
 
           <Button
             onClick={() => navigate("/store-clients")}
             variant="outline"
-            className="w-full h-14 text-lg rounded-2xl"
+            className="w-full h-14 text-base rounded-3xl shadow-premium hover-scale"
             size="lg"
           >
             <Users className="w-5 h-5 mr-2" />
@@ -212,7 +218,7 @@ const BusinessDashboard = () => {
           <Button
             onClick={() => navigate("/store-promotions")}
             variant="outline"
-            className="w-full h-14 text-lg rounded-2xl"
+            className="w-full h-14 text-base rounded-3xl shadow-premium hover-scale"
             size="lg"
           >
             <Megaphone className="w-5 h-5 mr-2" />
@@ -220,10 +226,10 @@ const BusinessDashboard = () => {
           </Button>
         </div>
 
-        {/* Quick Tips */}
-        <Card className="p-6 border-0 shadow-md rounded-3xl bg-gradient-to-br from-primary/5 to-primary-light/5">
-          <h3 className="font-semibold text-foreground mb-3">💡 Dica Rápida</h3>
-          <p className="text-sm text-muted-foreground">
+        {/* Premium Quick Tips */}
+        <Card className="p-8 border-0 shadow-premium rounded-3xl bg-gradient-to-br from-primary/5 to-primary-light/5 slide-in" style={{ animationDelay: '150ms' }}>
+          <h3 className="font-bold text-foreground mb-4 text-lg">💡 Dica Rápida</h3>
+          <p className="text-sm text-muted-foreground leading-relaxed">
             Use o QR Code para adicionar pontos rapidamente. Peça para o cliente mostrar 
             o código do cartão na tela do app!
           </p>
