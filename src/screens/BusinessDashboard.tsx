@@ -5,8 +5,8 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { LoyaltyCard } from "@/types/card";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { BottomNavigation } from "@/components/BottomNavigation";
-import { AnimatedCounter } from "@/components/AnimatedCounter";
+import { BottomNavigation } from "@/components/layout/BottomNavigation";
+import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
 import { 
   Store, 
   Users, 

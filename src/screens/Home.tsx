@@ -4,13 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useGamification } from "@/hooks/useGamification";
 import { LoyaltyCard } from "@/types/card";
-import { CardItem } from "@/components/CardItem";
-import { SearchBar } from "@/components/SearchBar";
-import { SortSelect } from "@/components/SortSelect";
+import { CardItem } from "@/components/cards/CardItem";
+import { SearchBar } from "@/components/common/SearchBar";
+import { SortSelect } from "@/components/common/SortSelect";
 import { Button } from "@/components/ui/button";
 import { Plus, Wallet } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { BottomNavigation } from "@/components/BottomNavigation";
+import { BottomNavigation } from "@/components/layout/BottomNavigation";
 
 const Home = () => {
   const navigate = useNavigate();

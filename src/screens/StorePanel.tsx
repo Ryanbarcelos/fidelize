@@ -17,7 +17,7 @@ import {
 import { ArrowLeft, QrCode, Plus, Gift } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
-import { QRScanner } from "@/components/QRScanner";
+import { QRScanner } from "@/components/cards/QRScanner";
 
 interface ScannedData {
   cardId: string;

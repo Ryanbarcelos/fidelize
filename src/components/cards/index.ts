@@ -1,0 +1,6 @@
+/**
+ * Exporta todos os componentes relacionados a cartões
+ */
+export { CardItem } from './CardItem';
+export { QRCodeDisplay } from './QRCodeDisplay';
+export { QRScanner } from './QRScanner';

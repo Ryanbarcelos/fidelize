@@ -4,7 +4,7 @@ import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useGamification } from "@/hooks/useGamification";
 import { LoyaltyCard } from "@/types/card";
-import { ProgressBar } from "@/components/ProgressBar";
+import { ProgressBar } from "@/components/gamification/ProgressBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -32,9 +32,9 @@ import {
 import { ArrowLeft, Edit, Trash2, Plus, Gift, QrCode, History } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
-import { AnimatedCounter } from "@/components/AnimatedCounter";
-import { CelebrationDialog } from "@/components/CelebrationDialog";
-import { QRCodeDisplay } from "@/components/QRCodeDisplay";
+import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
+import { CelebrationDialog } from "@/components/gamification/CelebrationDialog";
+import { QRCodeDisplay } from "@/components/cards/QRCodeDisplay";
 
 const CardDetails = () => {
   const navigate = useNavigate();

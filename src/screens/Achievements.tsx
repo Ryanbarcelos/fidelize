@@ -1,8 +1,8 @@
 import { Trophy } from "lucide-react";
 import { useAchievements } from "@/hooks/useAchievements";
-import { AchievementCard } from "@/components/AchievementCard";
+import { AchievementCard } from "@/components/gamification/AchievementCard";
 import { Card } from "@/components/ui/card";
-import { BottomNavigation } from "@/components/BottomNavigation";
+import { BottomNavigation } from "@/components/layout/BottomNavigation";
 
 const Achievements = () => {
   const { achievements, progress, getProgress, getCompletedCount } = useAchievements();

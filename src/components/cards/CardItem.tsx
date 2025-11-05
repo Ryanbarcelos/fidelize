@@ -1,6 +1,6 @@
 import { LoyaltyCard } from "@/types/card";
 import { useNavigate } from "react-router-dom";
-import { ProgressBar } from "@/components/ProgressBar";
+import { ProgressBar } from "@/components/gamification/ProgressBar";
 
 interface CardItemProps {
   card: LoyaltyCard;
