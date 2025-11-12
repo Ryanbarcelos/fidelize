@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { usePromotions } from "@/hooks/usePromotions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -21,8 +21,8 @@ import { Promotion } from "@/types/promotion";
 
 const StorePromotions = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const [promotions, setPromotions] = useLocalStorage<Promotion[]>("store-promotions", []);
+  const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { promotions, loading: promotionsLoading, addPromotion, updatePromotion, deletePromotion } = usePromotions();
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingPromotion, setEditingPromotion] = useState<Promotion | null>(null);
   
@@ -33,9 +33,11 @@ const StorePromotions = () => {
     endDate: "",
   });
 
-  const storePromotions = promotions.filter(
-    p => p.storeName === currentUser?.storeName
-  );
+  useEffect(() => {
+    if (!authLoading && (!currentUser || currentUser.accountType !== 'business')) {
+      navigate("/login");
+    }
+  }, [authLoading, currentUser, navigate]);
 
   const handleOpenDialog = (promotion?: Promotion) => {
     if (promotion) {
@@ -43,8 +45,8 @@ const StorePromotions = () => {
       setFormData({
         title: promotion.title,
         description: promotion.description,
-        startDate: promotion.startDate,
-        endDate: promotion.endDate,
+        startDate: new Date(promotion.startDate).toISOString().split('T')[0],
+        endDate: new Date(promotion.endDate).toISOString().split('T')[0],
       });
     } else {
       setEditingPromotion(null);
@@ -58,7 +60,7 @@ const StorePromotions = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!formData.title || !formData.description || !formData.startDate || !formData.endDate) {
       toast.error("Preencha todos os campos");
       return;
@@ -74,24 +76,34 @@ const StorePromotions = () => {
 
     if (editingPromotion) {
       // Update existing promotion
-      setPromotions(promotions.map(p => 
-        p.id === editingPromotion.id
-          ? { ...p, ...formData, updatedAt: new Date().toISOString() }
-          : p
-      ));
-      toast.success("Promoção atualizada com sucesso!");
+      const result = await updatePromotion(editingPromotion.id, {
+        title: formData.title,
+        description: formData.description,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString(),
+      });
+      
+      if (result?.success) {
+        toast.success("Promoção atualizada com sucesso!");
+      } else {
+        toast.error("Erro ao atualizar promoção");
+        return;
+      }
     } else {
       // Create new promotion
-      const newPromotion: Promotion = {
-        id: Date.now().toString(),
-        storeName: currentUser?.storeName || "",
-        ...formData,
-        isActive: true,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      setPromotions([...promotions, newPromotion]);
-      toast.success("Promoção criada com sucesso!");
+      const result = await addPromotion(
+        formData.title,
+        formData.description,
+        startDate.toISOString(),
+        endDate.toISOString()
+      );
+      
+      if (result?.success) {
+        toast.success("Promoção criada com sucesso!");
+      } else {
+        toast.error("Erro ao criar promoção");
+        return;
+      }
     }
 
     setIsDialogOpen(false);
@@ -104,9 +116,13 @@ const StorePromotions = () => {
     });
   };
 
-  const handleDelete = (id: string) => {
-    setPromotions(promotions.filter(p => p.id !== id));
-    toast.success("Promoção removida com sucesso!");
+  const handleDelete = async (id: string) => {
+    const result = await deletePromotion(id);
+    if (result?.success) {
+      toast.success("Promoção removida com sucesso!");
+    } else {
+      toast.error("Erro ao remover promoção");
+    }
   };
 
   const formatDate = (dateString: string) => {
@@ -153,7 +169,7 @@ const StorePromotions = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 animate-fade-in">
-        {storePromotions.length === 0 ? (
+        {promotions.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary/10 to-primary/5 flex items-center justify-center mx-auto mb-6">
               <Megaphone className="w-12 h-12 text-primary" />
@@ -175,7 +191,7 @@ const StorePromotions = () => {
           </div>
         ) : (
           <div className="space-y-4">
-            {storePromotions.map((promotion, index) => {
+            {promotions.map((promotion, index) => {
               const active = isPromotionActive(promotion);
               
               return (

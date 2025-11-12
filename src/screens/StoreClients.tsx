@@ -1,8 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { LoyaltyCard } from "@/types/card";
+import { useCards } from "@/hooks/useCards";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,7 +11,7 @@ import { Progress } from "@/components/ui/progress";
 const StoreClients = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const [cards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const { cards, loading } = useCards();
   const [searchQuery, setSearchQuery] = useState("");
 
   const storeCards = useMemo(() => {
@@ -31,11 +30,11 @@ const StoreClients = () => {
     return filtered;
   }, [cards, currentUser, searchQuery]);
 
-  const getTotalRewards = (card: LoyaltyCard) => {
-    return card.transactions?.filter(t => t.type === 'reward_collected').length || 0;
+  const getTotalRewards = (card: any) => {
+    return card.transactions?.filter((t: any) => t.type === 'reward_collected').length || 0;
   };
 
-  const getLastVisit = (card: LoyaltyCard) => {
+  const getLastVisit = (card: any) => {
     const transactions = card.transactions || [];
     if (transactions.length === 0) return "Nunca";
     
@@ -50,6 +49,17 @@ const StoreClients = () => {
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} semanas atrás`;
     return `${Math.floor(diffDays / 30)} meses atrás`;
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Carregando clientes...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">

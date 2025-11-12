@@ -14,7 +14,244 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      loyalty_cards: {
+        Row: {
+          card_number: string
+          created_at: string
+          id: string
+          logo: string | null
+          points: number
+          store_name: string
+          store_pin: string
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          card_number: string
+          created_at?: string
+          id?: string
+          logo?: string | null
+          points?: number
+          store_name: string
+          store_pin: string
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          card_number?: string
+          created_at?: string
+          id?: string
+          logo?: string | null
+          points?: number
+          store_name?: string
+          store_pin?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          description: string
+          id: string
+          image_url: string | null
+          promotion_id: string
+          read: boolean
+          received_at: string
+          store_id: string
+          store_name: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          description: string
+          id?: string
+          image_url?: string | null
+          promotion_id: string
+          read?: boolean
+          received_at?: string
+          store_id: string
+          store_name: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          description?: string
+          id?: string
+          image_url?: string | null
+          promotion_id?: string
+          read?: boolean
+          received_at?: string
+          store_id?: string
+          store_name?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "promotions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          account_type: string
+          avatar_url: string | null
+          cnpj: string | null
+          created_at: string
+          email: string
+          id: string
+          name: string
+          store_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account_type: string
+          avatar_url?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          name: string
+          store_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account_type?: string
+          avatar_url?: string | null
+          cnpj?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          name?: string
+          store_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      promotions: {
+        Row: {
+          created_at: string
+          description: string
+          end_date: string
+          id: string
+          image_url: string | null
+          is_active: boolean
+          start_date: string
+          store_id: string
+          store_name: string
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description: string
+          end_date: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          start_date: string
+          store_id: string
+          store_name: string
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string
+          end_date?: string
+          id?: string
+          image_url?: string | null
+          is_active?: boolean
+          start_date?: string
+          store_id?: string
+          store_name?: string
+          title?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      transactions: {
+        Row: {
+          card_id: string
+          id: string
+          points: number
+          store_name: string
+          timestamp: string
+          type: string
+          user_name: string | null
+        }
+        Insert: {
+          card_id: string
+          id?: string
+          points: number
+          store_name: string
+          timestamp?: string
+          type: string
+          user_name?: string | null
+        }
+        Update: {
+          card_id?: string
+          id?: string
+          points?: number
+          store_name?: string
+          timestamp?: string
+          type?: string
+          user_name?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_achievements: {
+        Row: {
+          achievement_id: string
+          completed: boolean
+          completed_at: string | null
+          current: number
+          current_streak: number
+          id: string
+          last_access_date: string | null
+          user_id: string
+        }
+        Insert: {
+          achievement_id: string
+          completed?: boolean
+          completed_at?: string | null
+          current?: number
+          current_streak?: number
+          id?: string
+          last_access_date?: string | null
+          user_id: string
+        }
+        Update: {
+          achievement_id?: string
+          completed?: boolean
+          completed_at?: string | null
+          current?: number
+          current_streak?: number
+          id?: string
+          last_access_date?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

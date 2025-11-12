@@ -1,9 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
 import { useAuth } from "@/hooks/useAuth";
+import { useCards } from "@/hooks/useCards";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useGamification } from "@/hooks/useGamification";
-import { LoyaltyCard } from "@/types/card";
 import { CardItem } from "@/components/cards/CardItem";
 import { SearchBar } from "@/components/common/SearchBar";
 import { SortSelect } from "@/components/common/SortSelect";
@@ -14,16 +13,25 @@ import { BottomNavigation } from "@/components/layout/BottomNavigation";
 
 const Home = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const [cards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { cards, loading: cardsLoading } = useCards();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const { updateAchievements } = useAchievements();
   const { level, xpProgress } = useGamification();
 
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!authLoading && !isAuthenticated) {
+      navigate("/login");
+    }
+  }, [authLoading, isAuthenticated, navigate]);
+
   // Update achievements whenever cards change
   useEffect(() => {
-    updateAchievements();
+    if (cards.length > 0) {
+      updateAchievements();
+    }
   }, [cards, updateAchievements]);
 
   const filteredAndSortedCards = useMemo(() => {
@@ -44,6 +52,17 @@ const Home = () => {
 
     return filtered;
   }, [cards, searchQuery, sortBy]);
+
+  if (authLoading || cardsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">

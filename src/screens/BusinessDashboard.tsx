@@ -1,8 +1,7 @@
 import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { LoyaltyCard } from "@/types/card";
+import { useCards } from "@/hooks/useCards";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -20,17 +19,19 @@ import {
 
 const BusinessDashboard = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const [cards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
+  const { cards, loading: cardsLoading } = useCards();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
-    if (!currentUser || currentUser.accountType !== 'business') {
+    if (!authLoading && (!currentUser || currentUser.accountType !== 'business')) {
       navigate("/login");
       return;
     }
-    setIsVisible(true);
-  }, [currentUser, navigate]);
+    if (isAuthenticated) {
+      setIsVisible(true);
+    }
+  }, [currentUser, isAuthenticated, authLoading, navigate]);
 
   // Calculate store stats
   const storeStats = useMemo(() => {
@@ -78,6 +79,17 @@ const BusinessDashboard = () => {
   }, [cards, currentUser]);
 
   const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "L";
+
+  if (authLoading || cardsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full border-4 border-primary border-t-transparent animate-spin mx-auto mb-4" />
+          <p className="text-muted-foreground">Carregando...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20">

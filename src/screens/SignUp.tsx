@@ -35,7 +35,7 @@ const SignUp = () => {
     }
   }, [currentUser, navigate]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!name.trim() || !email.trim() || !password.trim()) {
@@ -69,7 +69,7 @@ const SignUp = () => {
       ? { storeName: storeName.trim(), cnpj: cnpj.trim() || undefined }
       : undefined;
 
-    const result = signUp(name.trim(), email.trim(), password, accountType, businessDetails);
+    const result = await signUp(name.trim(), email.trim(), password, accountType, businessDetails);
 
     if (result.success) {
       toast({

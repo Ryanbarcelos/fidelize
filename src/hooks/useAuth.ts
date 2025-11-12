@@ -1,87 +1,158 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import type { User, Session } from "@supabase/supabase-js";
 
-interface User {
+interface UserProfile {
   id: string;
   name: string;
   email: string;
-  accountType: 'customer' | 'business';
+  accountType: "customer" | "business";
   storeName?: string;
+  cnpj?: string;
+  avatarUrl?: string;
+}
+
+interface BusinessDetails {
+  storeName: string;
   cnpj?: string;
 }
 
-interface AuthUser extends User {
-  password: string;
-}
-
 export function useAuth() {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const storedUser = localStorage.getItem('fidelize-current-user');
-    if (storedUser) {
-      setCurrentUser(JSON.parse(storedUser));
-    }
-    setIsLoading(false);
+    // Set up auth state listener
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        setSession(session);
+        setUser(session?.user ?? null);
+        
+        if (session?.user) {
+          // Fetch user profile
+          setTimeout(async () => {
+            const { data: profileData } = await supabase
+              .from("profiles")
+              .select("*")
+              .eq("user_id", session.user.id)
+              .single();
+            
+            if (profileData) {
+              setCurrentUser({
+                id: profileData.id,
+                name: profileData.name,
+                email: profileData.email,
+                accountType: profileData.account_type as "customer" | "business",
+                storeName: profileData.store_name,
+                cnpj: profileData.cnpj,
+                avatarUrl: profileData.avatar_url,
+              });
+            }
+          }, 0);
+        } else {
+          setCurrentUser(null);
+        }
+      }
+    );
+
+    // Check for existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        supabase
+          .from("profiles")
+          .select("*")
+          .eq("user_id", session.user.id)
+          .single()
+          .then(({ data: profileData }) => {
+            if (profileData) {
+              setCurrentUser({
+                id: profileData.id,
+                name: profileData.name,
+                email: profileData.email,
+                accountType: profileData.account_type as "customer" | "business",
+                storeName: profileData.store_name,
+                cnpj: profileData.cnpj,
+                avatarUrl: profileData.avatar_url,
+              });
+            }
+            setIsLoading(false);
+          });
+      } else {
+        setIsLoading(false);
+      }
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const signUp = (
-    name: string, 
-    email: string, 
+  const signUp = async (
+    name: string,
+    email: string,
     password: string,
-    accountType: 'customer' | 'business' = 'customer',
-    businessDetails?: { storeName?: string; cnpj?: string }
-  ): { success: boolean; error?: string } => {
-    const users = JSON.parse(localStorage.getItem('fidelize-users') || '[]') as AuthUser[];
-    
-    if (users.find(u => u.email === email)) {
-      return { success: false, error: 'Este email já está cadastrado' };
+    accountType: "customer" | "business" = "customer",
+    businessDetails?: BusinessDetails
+  ) => {
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: redirectUrl,
+          data: {
+            name,
+            account_type: accountType,
+            store_name: businessDetails?.storeName,
+            cnpj: businessDetails?.cnpj,
+          },
+        },
+      });
+
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      return { success: false, error: error.message };
     }
-
-    const newUser: AuthUser = {
-      id: Date.now().toString(),
-      name,
-      email,
-      password,
-      accountType,
-      ...(accountType === 'business' && businessDetails),
-    };
-
-    users.push(newUser);
-    localStorage.setItem('fidelize-users', JSON.stringify(users));
-
-    const { password: _, ...userWithoutPassword } = newUser;
-    setCurrentUser(userWithoutPassword);
-    localStorage.setItem('fidelize-current-user', JSON.stringify(userWithoutPassword));
-
-    return { success: true };
   };
 
-  const login = (email: string, password: string): { success: boolean; error?: string } => {
-    const users = JSON.parse(localStorage.getItem('fidelize-users') || '[]') as AuthUser[];
-    const user = users.find(u => u.email === email && u.password === password);
+  const login = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
 
-    if (!user) {
-      return { success: false, error: 'Email ou senha incorretos' };
+      if (error) {
+        return { success: false, error: error.message };
+      }
+
+      return { success: true, data };
+    } catch (error: any) {
+      return { success: false, error: error.message };
     }
-
-    const { password: _, ...userWithoutPassword } = user;
-    setCurrentUser(userWithoutPassword);
-    localStorage.setItem('fidelize-current-user', JSON.stringify(userWithoutPassword));
-
-    return { success: true };
   };
 
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('fidelize-current-user');
+  const logout = async () => {
+    await supabase.auth.signOut();
   };
 
   return {
     currentUser,
+    user,
+    session,
     isLoading,
     signUp,
     login,
     logout,
+    isAuthenticated: !!user && !!currentUser,
   };
 }
