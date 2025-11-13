@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
-import { useLocalStorage } from "./useLocalStorage";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "./useAuth";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 
@@ -84,14 +85,61 @@ const calculateLevel = (totalRewards: number): number => {
 };
 
 export const useGamification = () => {
-  const [gamificationData, setGamificationData] = useLocalStorage<GamificationData>(
-    "gamification-data",
-    INITIAL_DATA
-  );
+  const { user } = useAuth();
+  const [gamificationData, setGamificationData] = useState<GamificationData>(INITIAL_DATA);
+  const [loading, setLoading] = useState(true);
   const [newlyUnlocked, setNewlyUnlocked] = useState<{ medals: Medal[]; levelUp: boolean }>({
     medals: [],
     levelUp: false,
   });
+
+  // Fetch gamification data from Supabase
+  useEffect(() => {
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    const fetchGamificationData = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("user_gamification")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          setGamificationData({
+            totalRewardsCollected: data.total_rewards_collected,
+            currentLevel: data.current_level,
+            currentXP: data.current_xp,
+            medals: data.medals || [],
+          });
+        } else {
+          // Initialize gamification data for new users
+          const { error: insertError } = await supabase
+            .from("user_gamification")
+            .insert({
+              user_id: user.id,
+              total_rewards_collected: 0,
+              current_level: 0,
+              current_xp: 0,
+              medals: [],
+            });
+
+          if (insertError) throw insertError;
+        }
+      } catch (error) {
+        console.error("Error fetching gamification data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchGamificationData();
+  }, [user]);
 
   const triggerCelebration = useCallback(() => {
     confetti({
@@ -101,7 +149,7 @@ export const useGamification = () => {
     });
   }, []);
 
-  const checkMedals = useCallback((totalRewards: number, previousTotal: number) => {
+  const checkMedals = useCallback(async (totalRewards: number, previousTotal: number) => {
     const newMedals: Medal[] = [];
     
     MEDALS.forEach((medal) => {
@@ -114,55 +162,79 @@ export const useGamification = () => {
       }
     });
 
-    if (newMedals.length > 0) {
-      setGamificationData((prev) => ({
-        ...prev,
-        medals: [...prev.medals, ...newMedals.map((m) => m.id)],
-      }));
+    if (newMedals.length > 0 && user) {
+      const updatedMedals = [...gamificationData.medals, ...newMedals.map((m) => m.id)];
+      
+      try {
+        await supabase
+          .from("user_gamification")
+          .update({ medals: updatedMedals })
+          .eq("user_id", user.id);
 
-      // Mostrar notificação para cada medalha
-      newMedals.forEach((medal) => {
-        setTimeout(() => {
-          triggerCelebration();
-          toast.success(`🏆 Nova Medalha Desbloqueada: ${medal.name}!`, {
-            description: medal.description,
-            duration: 5000,
-          });
-        }, 500);
-      });
+        setGamificationData((prev) => ({
+          ...prev,
+          medals: updatedMedals,
+        }));
 
-      setNewlyUnlocked((prev) => ({ ...prev, medals: newMedals }));
+        newMedals.forEach((medal) => {
+          setTimeout(() => {
+            triggerCelebration();
+            toast.success(`🏆 Nova Medalha Desbloqueada: ${medal.name}!`, {
+              description: medal.description,
+              duration: 5000,
+            });
+          }, 500);
+        });
+
+        setNewlyUnlocked((prev) => ({ ...prev, medals: newMedals }));
+      } catch (error) {
+        console.error("Error updating medals:", error);
+      }
     }
-  }, [gamificationData.medals, setGamificationData, triggerCelebration]);
+  }, [gamificationData.medals, user, triggerCelebration]);
 
-  const addReward = useCallback(() => {
+  const addReward = useCallback(async () => {
+    if (!user) return;
+
     const previousTotal = gamificationData.totalRewardsCollected;
     const newTotal = previousTotal + 1;
     const previousLevel = calculateLevel(previousTotal);
     const newLevel = calculateLevel(newTotal);
 
-    setGamificationData({
-      totalRewardsCollected: newTotal,
-      currentLevel: newLevel,
-      currentXP: newTotal,
-      medals: gamificationData.medals,
-    });
+    try {
+      await supabase
+        .from("user_gamification")
+        .update({
+          total_rewards_collected: newTotal,
+          current_level: newLevel,
+          current_xp: newTotal,
+        })
+        .eq("user_id", user.id);
 
-    // Verificar se subiu de nível
-    if (newLevel > previousLevel) {
-      setTimeout(() => {
-        triggerCelebration();
-        toast.success(`🎉 Nível ${newLevel} Alcançado!`, {
-          description: `Continue coletando recompensas para subir de nível!`,
-          duration: 5000,
-        });
-      }, 1000);
-      setNewlyUnlocked((prev) => ({ ...prev, levelUp: true }));
+      setGamificationData({
+        totalRewardsCollected: newTotal,
+        currentLevel: newLevel,
+        currentXP: newTotal,
+        medals: gamificationData.medals,
+      });
+
+      if (newLevel > previousLevel) {
+        setTimeout(() => {
+          triggerCelebration();
+          toast.success(`🎉 Nível ${newLevel} Alcançado!`, {
+            description: `Continue coletando recompensas para subir de nível!`,
+            duration: 5000,
+          });
+        }, 1000);
+        setNewlyUnlocked((prev) => ({ ...prev, levelUp: true }));
+      }
+
+      checkMedals(newTotal, previousTotal);
+    } catch (error) {
+      console.error("Error adding reward:", error);
+      toast.error("Erro ao adicionar recompensa");
     }
-
-    // Verificar medalhas
-    checkMedals(newTotal, previousTotal);
-  }, [gamificationData, setGamificationData, triggerCelebration, checkMedals]);
+  }, [user, gamificationData, triggerCelebration, checkMedals]);
 
   const getXPProgress = useCallback(() => {
     const level = gamificationData.currentLevel;
@@ -209,5 +281,6 @@ export const useGamification = () => {
     addReward,
     newlyUnlocked,
     clearNewlyUnlocked,
+    loading,
   };
 };
