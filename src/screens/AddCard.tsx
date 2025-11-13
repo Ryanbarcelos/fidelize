@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useCards } from "@/hooks/useCards";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useAuth } from "@/hooks/useAuth";
-import { LoyaltyCard } from "@/types/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -17,7 +16,7 @@ const AddCard = () => {
   const location = useLocation();
   const { id } = useParams();
   const { currentUser } = useAuth();
-  const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const { cards, addCard, updateCard } = useCards();
   const { updateAchievements } = useAchievements();
   
   // Get pre-filled store name from navigation state (from NearbyStores)
@@ -48,7 +47,7 @@ const AddCard = () => {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!storeName.trim()) {
@@ -61,39 +60,57 @@ const AddCard = () => {
       return;
     }
 
-    const newCard: LoyaltyCard = {
-      id: id || Date.now().toString(),
-      storeName: storeName.trim(),
-      userName: currentUser?.name || "Usuário",
-      cardNumber: cardNumber.trim(),
-      points: parseInt(points) || 0,
-      storePin: storePin,
-      logo: logo || undefined,
-      createdAt: existingCard?.createdAt || new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    };
+    try {
+      if (existingCard) {
+        const result = await updateCard(id!, {
+          storeName: storeName.trim(),
+          userName: currentUser?.name || "Usuário",
+          cardNumber: cardNumber.trim(),
+          points: parseInt(points) || 0,
+          storePin: storePin,
+          logo: logo || undefined,
+        });
 
-    if (existingCard) {
-      setCards(cards.map((c) => (c.id === id ? newCard : c)));
-      toast.success("Cartão atualizado com sucesso!");
-    } else {
-      setCards([...cards, newCard]);
-      toast.success("Cartão adicionado com sucesso!");
+        if (result?.success) {
+          toast.success("Cartão atualizado com sucesso!");
+        } else {
+          toast.error(result?.error || "Erro ao atualizar cartão");
+          return;
+        }
+      } else {
+        const result = await addCard(
+          storeName.trim(),
+          currentUser?.name || "Usuário",
+          cardNumber.trim(),
+          storePin,
+          logo || undefined
+        );
+
+        if (result?.success) {
+          toast.success("Cartão adicionado com sucesso!");
+          
+          // Trigger confetti for new card
+          confetti({
+            particleCount: 100,
+            spread: 70,
+            origin: { y: 0.6 },
+          });
+        } else {
+          toast.error(result?.error || "Erro ao adicionar cartão");
+          return;
+        }
+      }
+
+      // Update achievements
+      updateAchievements();
       
-      // Trigger confetti for new card
-      confetti({
-        particleCount: 100,
-        spread: 70,
-        origin: { y: 0.6 },
-      });
+      setTimeout(() => {
+        navigate("/");
+      }, 300);
+    } catch (error) {
+      toast.error("Erro ao salvar cartão");
+      console.error(error);
     }
-
-    // Update achievements
-    updateAchievements();
-    
-    setTimeout(() => {
-      navigate("/");
-    }, 300);
   };
 
   return (

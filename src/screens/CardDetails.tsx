@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
+import { useCards } from "@/hooks/useCards";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useGamification } from "@/hooks/useGamification";
-import { LoyaltyCard } from "@/types/card";
 import { ProgressBar } from "@/components/gamification/ProgressBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -39,7 +38,7 @@ import { QRCodeDisplay } from "@/components/cards/QRCodeDisplay";
 const CardDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const { cards, updateCard, deleteCard, addTransaction } = useCards();
   const { updateAchievements, incrementRewardsCollected } = useAchievements();
   const { addReward } = useGamification();
   const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
@@ -73,10 +72,16 @@ const CardDetails = () => {
     );
   }
 
-  const handleDelete = () => {
-    setCards(cards.filter((c) => c.id !== id));
-    toast.success("Cartão excluído com sucesso!");
-    navigate("/");
+  const handleDelete = async () => {
+    if (!id) return;
+    
+    const result = await deleteCard(id);
+    if (result?.success) {
+      toast.success("Cartão excluído com sucesso!");
+      navigate("/");
+    } else {
+      toast.error(result?.error || "Erro ao excluir cartão");
+    }
   };
 
   const triggerConfetti = () => {
@@ -109,67 +114,76 @@ const CardDetails = () => {
     }, 250);
   };
 
-  const handleAddPoints = () => {
-    if (!card) return;
+  const handleAddPoints = async () => {
+    if (!card || !id) return;
 
     if (pinInput !== card.storePin) {
       toast.error("PIN incorreto");
       return;
     }
 
-    const points = parseInt(pointsToAdd) || 0;
-    if (points <= 0) {
-      toast.error("Por favor, insira uma quantidade válida de pontos");
+    const points = parseInt(pointsToAdd);
+    if (isNaN(points) || points <= 0) {
+      toast.error("Por favor, insira um número válido de pontos");
       return;
     }
 
     const newPoints = card.points + points;
     
-    // Create transaction record
-    const newTransaction = {
-      id: Date.now().toString(),
-      cardId: card.id,
-      type: "points_added" as const,
-      points: points,
-      storeName: card.storeName,
-      timestamp: new Date().toISOString(),
-    };
+    // Check if card was just completed
+    const wasJustCompleted = card.points < 10 && newPoints >= 10;
     
-    const updatedCards = cards.map((c) =>
-      c.id === id
-        ? { 
-            ...c, 
-            points: newPoints, 
-            updatedAt: new Date().toISOString(),
-            transactions: [...(c.transactions || []), newTransaction]
-          }
-        : c
-    );
-    setCards(updatedCards);
-    
-    // Trigger confetti animation
-    triggerConfetti();
-    
-    // Success toast
-    toast.success(`${points} ${points === 1 ? "ponto adicionado" : "pontos adicionados"} com sucesso!`);
-    
-    // Check if card is complete (10 points)
-    if (newPoints >= 10 && card.points < 10) {
-      setTimeout(() => {
+    try {
+      // Update card points
+      const updateResult = await updateCard(id, { points: newPoints });
+      if (!updateResult?.success) {
+        toast.error(updateResult?.error || "Erro ao adicionar pontos");
+        return;
+      }
+
+      // Add transaction
+      await addTransaction(id, "points_added", points, card.storeName, card.userName);
+      
+      // Animate the points change
+      const startPoints = card.points;
+      const duration = 1000;
+      const startTime = Date.now();
+      
+      const animate = () => {
+        const currentTime = Date.now();
+        const elapsed = currentTime - startTime;
+        const progress = Math.min(elapsed / duration, 1);
+        const currentPoints = Math.floor(startPoints + (newPoints - startPoints) * progress);
+        
+        setAnimatedPoints(currentPoints);
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate);
+        }
+      };
+      
+      animate();
+      
+      if (wasJustCompleted) {
         setCelebrationDialog({ open: true, type: "complete" });
-      }, 500);
+        triggerConfetti();
+      }
+      
+      toast.success(`${points} pontos adicionados!`);
+      setIsAddPointsOpen(false);
+      setPinInput("");
+      setPointsToAdd("");
+      
+      // Update achievements
+      updateAchievements();
+    } catch (error) {
+      toast.error("Erro ao adicionar pontos");
+      console.error(error);
     }
-    
-    setIsAddPointsOpen(false);
-    setPinInput("");
-    setPointsToAdd("");
-    
-    // Update achievements
-    updateAchievements();
   };
 
-  const handleCollectReward = () => {
-    if (!card) return;
+  const handleCollectReward = async () => {
+    if (!card || !id) return;
 
     if (collectPinInput !== card.storePin) {
       toast.error("PIN incorreto");
@@ -177,52 +191,40 @@ const CardDetails = () => {
     }
 
     if (card.points < 10) {
-      toast.error("Você precisa de pelo menos 10 pontos para coletar a recompensa");
+      toast.error("Você ainda não tem pontos suficientes para coletar uma recompensa");
       return;
     }
 
-    // Create transaction record
-    const newTransaction = {
-      id: Date.now().toString(),
-      cardId: card.id,
-      type: "reward_collected" as const,
-      points: 10,
-      storeName: card.storeName,
-      timestamp: new Date().toISOString(),
-    };
+    try {
+      // Update card points to 0
+      const updateResult = await updateCard(id, { points: 0 });
+      if (!updateResult?.success) {
+        toast.error(updateResult?.error || "Erro ao coletar recompensa");
+        return;
+      }
 
-    const updatedCards = cards.map((c) =>
-      c.id === id
-        ? { 
-            ...c, 
-            points: 0, 
-            updatedAt: new Date().toISOString(),
-            transactions: [...(c.transactions || []), newTransaction]
-          }
-        : c
-    );
-    setCards(updatedCards);
-    
-    // Trigger confetti animation
-    triggerConfetti();
-    
-    // Show celebration dialog with XP message
-    setTimeout(() => {
+      // Add transaction
+      await addTransaction(id, "reward_collected", 10, card.storeName, card.userName);
+      
+      setAnimatedPoints(0);
+      
+      // Add reward to gamification
+      addReward(); // Adds 1 reward to the gamification system
+      incrementRewardsCollected();
+      
       setCelebrationDialog({ open: true, type: "reward" });
-      toast.success("🏆 Recompensa resgatada com sucesso! +1 XP", {
-        description: "Continue coletando recompensas para subir de nível!",
-        duration: 4000,
-      });
-    }, 300);
-    
-    // Increment rewards collected achievement
-    incrementRewardsCollected();
-    
-    // Add reward to gamification system
-    addReward();
-    
-    setIsCollectRewardOpen(false);
-    setCollectPinInput("");
+      triggerConfetti();
+      
+      toast.success("Recompensa coletada! +50 XP");
+      setIsCollectRewardOpen(false);
+      setCollectPinInput("");
+      
+      // Update achievements
+      updateAchievements();
+    } catch (error) {
+      toast.error("Erro ao coletar recompensa");
+      console.error(error);
+    }
   };
 
   const cardColors = [
