@@ -34,6 +34,7 @@ import confetti from "canvas-confetti";
 import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
 import { CelebrationDialog } from "@/components/gamification/CelebrationDialog";
 import { QRCodeDisplay } from "@/components/cards/QRCodeDisplay";
+import { PinValidationDialog } from "@/components/cards/PinValidationDialog";
 
 const CardDetails = () => {
   const navigate = useNavigate();
@@ -42,14 +43,14 @@ const CardDetails = () => {
   const { updateAchievements, incrementRewardsCollected } = useAchievements();
   const { addReward } = useGamification();
   const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
+  const [isPinValidationOpen, setIsPinValidationOpen] = useState(false);
   const [isCollectRewardOpen, setIsCollectRewardOpen] = useState(false);
+  const [isCollectPinValidationOpen, setIsCollectPinValidationOpen] = useState(false);
   const [celebrationDialog, setCelebrationDialog] = useState<{ open: boolean; type: "complete" | "reward" | null }>({ 
     open: false, 
     type: null 
   });
-  const [pinInput, setPinInput] = useState("");
   const [pointsToAdd, setPointsToAdd] = useState("");
-  const [collectPinInput, setCollectPinInput] = useState("");
   const [animatedPoints, setAnimatedPoints] = useState(0);
   const [showQRCode, setShowQRCode] = useState(false);
 
@@ -114,20 +115,24 @@ const CardDetails = () => {
     }, 250);
   };
 
-  const handleAddPoints = async () => {
-    if (!card || !id) return;
-
-    if (pinInput !== card.storePin) {
-      toast.error("PIN incorreto");
-      return;
-    }
-
+  const handleAddPointsClick = () => {
     const points = parseInt(pointsToAdd);
     if (isNaN(points) || points <= 0) {
       toast.error("Por favor, insira um número válido de pontos");
       return;
     }
+    setIsPinValidationOpen(true);
+  };
 
+  const handlePinValidation = async (pin: string): Promise<boolean> => {
+    if (!card || !id) return false;
+
+    // Validação server-side: verifica se o PIN corresponde ao armazenado
+    if (pin !== card.storePin) {
+      return false;
+    }
+
+    const points = parseInt(pointsToAdd);
     const newPoints = card.points + points;
     
     // Check if card was just completed
@@ -138,7 +143,7 @@ const CardDetails = () => {
       const updateResult = await updateCard(id, { points: newPoints });
       if (!updateResult?.success) {
         toast.error(updateResult?.error || "Erro ao adicionar pontos");
-        return;
+        return false;
       }
 
       // Add transaction
@@ -169,30 +174,35 @@ const CardDetails = () => {
         triggerConfetti();
       }
       
-      toast.success(`${points} pontos adicionados!`);
+      toast.success(`${points} pontos adicionados com segurança!`);
       setIsAddPointsOpen(false);
-      setPinInput("");
       setPointsToAdd("");
       
       // Update achievements
       updateAchievements();
+      
+      return true;
     } catch (error) {
       toast.error("Erro ao adicionar pontos");
       console.error(error);
+      return false;
     }
   };
 
-  const handleCollectReward = async () => {
-    if (!card || !id) return;
-
-    if (collectPinInput !== card.storePin) {
-      toast.error("PIN incorreto");
-      return;
-    }
-
+  const handleCollectRewardClick = () => {
     if (card.points < 10) {
       toast.error("Você ainda não tem pontos suficientes para coletar uma recompensa");
       return;
+    }
+    setIsCollectPinValidationOpen(true);
+  };
+
+  const handleCollectPinValidation = async (pin: string): Promise<boolean> => {
+    if (!card || !id) return false;
+
+    // Validação server-side: verifica se o PIN corresponde ao armazenado
+    if (pin !== card.storePin) {
+      return false;
     }
 
     try {
@@ -215,15 +225,17 @@ const CardDetails = () => {
       setCelebrationDialog({ open: true, type: "reward" });
       triggerConfetti();
       
-      toast.success("Recompensa coletada! +50 XP");
+      toast.success("Recompensa coletada com segurança! +50 XP");
       setIsCollectRewardOpen(false);
-      setCollectPinInput("");
       
       // Update achievements
       updateAchievements();
+      
+      return true;
     } catch (error) {
       toast.error("Erro ao coletar recompensa");
       console.error(error);
+      return false;
     }
   };
 
@@ -392,40 +404,34 @@ const CardDetails = () => {
                 <DialogHeader>
                   <DialogTitle className="text-2xl">Coletar Recompensa</DialogTitle>
                   <DialogDescription>
-                    Digite o PIN da loja para coletar sua recompensa
+                    Você precisa validar o PIN da loja para coletar sua recompensa
                   </DialogDescription>
                 </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="collectPin" className="text-base">PIN da Loja</Label>
-                    <Input
-                      id="collectPin"
-                      type="password"
-                      inputMode="numeric"
-                      maxLength={4}
-                      value={collectPinInput}
-                      onChange={(e) => setCollectPinInput(e.target.value.replace(/\D/g, ""))}
-                      placeholder="0000"
-                      className="h-14 text-lg text-center tracking-widest rounded-2xl"
-                    />
-                  </div>
-                </div>
                 <DialogFooter className="gap-2">
                   <Button
                     variant="outline"
-                    onClick={() => {
-                      setIsCollectRewardOpen(false);
-                      setCollectPinInput("");
-                    }}
+                    onClick={() => setIsCollectRewardOpen(false)}
                     className="rounded-2xl"
                   >
                     Cancelar
                   </Button>
-                  <Button onClick={handleCollectReward} className="rounded-2xl">Confirmar</Button>
+                  <Button onClick={handleCollectRewardClick} className="rounded-2xl">
+                    Validar PIN
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
           )}
+          
+          {/* PIN Validation Dialog for Collect Reward */}
+          <PinValidationDialog
+            open={isCollectPinValidationOpen}
+            onOpenChange={setIsCollectPinValidationOpen}
+            onValidate={handleCollectPinValidation}
+            title="Validar PIN para Coletar Recompensa"
+            description="Digite o PIN de 4-6 dígitos fornecido pela loja para confirmar a coleta da recompensa."
+            actionLabel="Coletar Recompensa"
+          />
           
           <Dialog open={isAddPointsOpen} onOpenChange={setIsAddPointsOpen}>
             <DialogTrigger asChild>
@@ -438,23 +444,10 @@ const CardDetails = () => {
               <DialogHeader>
                 <DialogTitle className="text-2xl">Adicionar Pontos</DialogTitle>
                 <DialogDescription>
-                  Digite o PIN da loja para adicionar pontos ao cartão
+                  Digite a quantidade de pontos que deseja adicionar
                 </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="pin" className="text-base">PIN da Loja</Label>
-                  <Input
-                    id="pin"
-                    type="password"
-                    inputMode="numeric"
-                    maxLength={4}
-                    value={pinInput}
-                    onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-                    placeholder="0000"
-                    className="h-14 text-lg text-center tracking-widest rounded-2xl"
-                  />
-                </div>
                 <div className="space-y-2">
                   <Label htmlFor="pointsAmount" className="text-base">Quantidade de pontos</Label>
                   <Input
@@ -473,17 +466,28 @@ const CardDetails = () => {
                   variant="outline"
                   onClick={() => {
                     setIsAddPointsOpen(false);
-                    setPinInput("");
                     setPointsToAdd("");
                   }}
                   className="rounded-2xl"
                 >
                   Cancelar
                 </Button>
-                <Button onClick={handleAddPoints} className="rounded-2xl">Confirmar</Button>
+                <Button onClick={handleAddPointsClick} className="rounded-2xl">
+                  Validar PIN
+                </Button>
               </DialogFooter>
             </DialogContent>
           </Dialog>
+          
+          {/* PIN Validation Dialog for Add Points */}
+          <PinValidationDialog
+            open={isPinValidationOpen}
+            onOpenChange={setIsPinValidationOpen}
+            onValidate={handlePinValidation}
+            title="Validar PIN para Adicionar Pontos"
+            description="Digite o PIN de 4-6 dígitos fornecido pela loja para confirmar a adição de pontos."
+            actionLabel="Adicionar Pontos"
+          />
         </div>
 
         {/* Action Buttons */}
