@@ -14,6 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      audit_logs: {
+        Row: {
+          action: string
+          card_id: string | null
+          created_at: string | null
+          device_info: string | null
+          error_message: string | null
+          id: string
+          ip_address: string | null
+          latitude: number | null
+          longitude: number | null
+          status: string
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          action: string
+          card_id?: string | null
+          created_at?: string | null
+          device_info?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          status: string
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          card_id?: string | null
+          created_at?: string | null
+          device_info?: string | null
+          error_message?: string | null
+          id?: string
+          ip_address?: string | null
+          latitude?: number | null
+          longitude?: number | null
+          status?: string
+          user_agent?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loyalty_cards: {
         Row: {
           card_number: string
@@ -180,6 +233,47 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      transaction_tokens: {
+        Row: {
+          action_type: string
+          card_id: string
+          created_at: string | null
+          expires_at: string
+          id: string
+          is_used: boolean | null
+          token: string
+          used_at: string | null
+        }
+        Insert: {
+          action_type: string
+          card_id: string
+          created_at?: string | null
+          expires_at: string
+          id?: string
+          is_used?: boolean | null
+          token: string
+          used_at?: string | null
+        }
+        Update: {
+          action_type?: string
+          card_id?: string
+          created_at?: string | null
+          expires_at?: string
+          id?: string
+          is_used?: boolean | null
+          token?: string
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_tokens_card_id_fkey"
+            columns: ["card_id"]
+            isOneToOne: false
+            referencedRelation: "loyalty_cards"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       transactions: {
         Row: {

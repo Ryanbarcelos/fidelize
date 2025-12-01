@@ -3,11 +3,10 @@ import { useNavigate, useParams } from "react-router-dom";
 import { useCards } from "@/hooks/useCards";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useGamification } from "@/hooks/useGamification";
+import { useAuditLog } from "@/hooks/useAuditLog";
 import { ProgressBar } from "@/components/gamification/ProgressBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,22 +18,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
-import { ArrowLeft, Edit, Trash2, Plus, Gift, QrCode, History } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Gift, QrCode, History } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
 import { CelebrationDialog } from "@/components/gamification/CelebrationDialog";
-import { QRCodeDisplay } from "@/components/cards/QRCodeDisplay";
-import { PinValidationDialog } from "@/components/cards/PinValidationDialog";
+import { TemporaryQRCode } from "@/components/cards/TemporaryQRCode";
 
 const CardDetails = () => {
   const navigate = useNavigate();
@@ -42,17 +31,15 @@ const CardDetails = () => {
   const { cards, updateCard, deleteCard, addTransaction } = useCards();
   const { updateAchievements, incrementRewardsCollected } = useAchievements();
   const { addReward } = useGamification();
-  const [isAddPointsOpen, setIsAddPointsOpen] = useState(false);
-  const [isPinValidationOpen, setIsPinValidationOpen] = useState(false);
-  const [isCollectRewardOpen, setIsCollectRewardOpen] = useState(false);
-  const [isCollectPinValidationOpen, setIsCollectPinValidationOpen] = useState(false);
+  const { logAction, getLocation } = useAuditLog();
+  
+  const [showQRCode, setShowQRCode] = useState(false);
+  const [qrActionType, setQrActionType] = useState<'add_points' | 'collect_reward'>('add_points');
   const [celebrationDialog, setCelebrationDialog] = useState<{ open: boolean; type: "complete" | "reward" | null }>({ 
     open: false, 
     type: null 
   });
-  const [pointsToAdd, setPointsToAdd] = useState("");
   const [animatedPoints, setAnimatedPoints] = useState(0);
-  const [showQRCode, setShowQRCode] = useState(false);
 
   const card = cards.find((c) => c.id === id);
 
@@ -76,11 +63,30 @@ const CardDetails = () => {
   const handleDelete = async () => {
     if (!id) return;
     
+    const location = await getLocation();
+    
     const result = await deleteCard(id);
     if (result?.success) {
+      await logAction({
+        cardId: id,
+        action: 'delete_card',
+        status: 'success',
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+      
       toast.success("Cartão excluído com sucesso!");
       navigate("/");
     } else {
+      await logAction({
+        cardId: id,
+        action: 'delete_card',
+        status: 'failed',
+        errorMessage: result?.error,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+      
       toast.error(result?.error || "Erro ao excluir cartão");
     }
   };
@@ -115,128 +121,18 @@ const CardDetails = () => {
     }, 250);
   };
 
-  const handleAddPointsClick = () => {
-    const points = parseInt(pointsToAdd);
-    if (isNaN(points) || points <= 0) {
-      toast.error("Por favor, insira um número válido de pontos");
-      return;
-    }
-    setIsPinValidationOpen(true);
+  const handleShowQRForPoints = () => {
+    setQrActionType('add_points');
+    setShowQRCode(true);
   };
 
-  const handlePinValidation = async (pin: string): Promise<boolean> => {
-    if (!card || !id) return false;
-
-    // Validação server-side: verifica se o PIN corresponde ao armazenado
-    if (pin !== card.storePin) {
-      return false;
-    }
-
-    const points = parseInt(pointsToAdd);
-    const newPoints = card.points + points;
-    
-    // Check if card was just completed
-    const wasJustCompleted = card.points < 10 && newPoints >= 10;
-    
-    try {
-      // Update card points
-      const updateResult = await updateCard(id, { points: newPoints });
-      if (!updateResult?.success) {
-        toast.error(updateResult?.error || "Erro ao adicionar pontos");
-        return false;
-      }
-
-      // Add transaction
-      await addTransaction(id, "points_added", points, card.storeName, card.userName);
-      
-      // Animate the points change
-      const startPoints = card.points;
-      const duration = 1000;
-      const startTime = Date.now();
-      
-      const animate = () => {
-        const currentTime = Date.now();
-        const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const currentPoints = Math.floor(startPoints + (newPoints - startPoints) * progress);
-        
-        setAnimatedPoints(currentPoints);
-        
-        if (progress < 1) {
-          requestAnimationFrame(animate);
-        }
-      };
-      
-      animate();
-      
-      if (wasJustCompleted) {
-        setCelebrationDialog({ open: true, type: "complete" });
-        triggerConfetti();
-      }
-      
-      toast.success(`${points} pontos adicionados com segurança!`);
-      setIsAddPointsOpen(false);
-      setPointsToAdd("");
-      
-      // Update achievements
-      updateAchievements();
-      
-      return true;
-    } catch (error) {
-      toast.error("Erro ao adicionar pontos");
-      console.error(error);
-      return false;
-    }
-  };
-
-  const handleCollectRewardClick = () => {
+  const handleShowQRForReward = () => {
     if (card.points < 10) {
       toast.error("Você ainda não tem pontos suficientes para coletar uma recompensa");
       return;
     }
-    setIsCollectPinValidationOpen(true);
-  };
-
-  const handleCollectPinValidation = async (pin: string): Promise<boolean> => {
-    if (!card || !id) return false;
-
-    // Validação server-side: verifica se o PIN corresponde ao armazenado
-    if (pin !== card.storePin) {
-      return false;
-    }
-
-    try {
-      // Update card points to 0
-      const updateResult = await updateCard(id, { points: 0 });
-      if (!updateResult?.success) {
-        toast.error(updateResult?.error || "Erro ao coletar recompensa");
-        return;
-      }
-
-      // Add transaction
-      await addTransaction(id, "reward_collected", 10, card.storeName, card.userName);
-      
-      setAnimatedPoints(0);
-      
-      // Add reward to gamification
-      addReward(); // Adds 1 reward to the gamification system
-      incrementRewardsCollected();
-      
-      setCelebrationDialog({ open: true, type: "reward" });
-      triggerConfetti();
-      
-      toast.success("Recompensa coletada com segurança! +50 XP");
-      setIsCollectRewardOpen(false);
-      
-      // Update achievements
-      updateAchievements();
-      
-      return true;
-    } catch (error) {
-      toast.error("Erro ao coletar recompensa");
-      console.error(error);
-      return false;
-    }
+    setQrActionType('collect_reward');
+    setShowQRCode(true);
   };
 
   const cardColors = [
@@ -368,16 +264,30 @@ const CardDetails = () => {
           </div>
         </Card>
 
-        {/* QR Code Button */}
-        <Button
-          onClick={() => setShowQRCode(true)}
-          variant="outline"
-          className="w-full h-14 text-lg rounded-2xl shadow-md hover:shadow-lg mb-4"
-          size="lg"
-        >
-          <QrCode className="w-5 h-5 mr-2" />
-          Mostrar QR Code
-        </Button>
+        {/* Action Buttons */}
+        <div className="mb-4 space-y-3">
+          {/* Collect Reward Button */}
+          {card.points >= 10 && (
+            <Button 
+              onClick={handleShowQRForReward}
+              className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl bg-gradient-to-r from-success to-success/80" 
+              size="lg"
+            >
+              <Gift className="w-5 h-5 mr-2" />
+              Coletar Recompensa (QR Seguro)
+            </Button>
+          )}
+          
+          {/* Add Points Button */}
+          <Button 
+            onClick={handleShowQRForPoints}
+            className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl" 
+            size="lg"
+          >
+            <QrCode className="w-5 h-5 mr-2" />
+            Adicionar Pontos (QR Seguro)
+            </Button>
+        </div>
 
         {/* Transaction History Button */}
         <Button
@@ -387,161 +297,70 @@ const CardDetails = () => {
           size="lg"
         >
           <History className="w-5 h-5 mr-2" />
-          Ver histórico
+          Ver histórico de transações
         </Button>
 
-        {/* Add Points & Collect Reward Buttons */}
-        <div className="mb-4 space-y-3">
-          {card.points >= 10 && (
-            <Dialog open={isCollectRewardOpen} onOpenChange={setIsCollectRewardOpen}>
-              <DialogTrigger asChild>
-                <Button className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl bg-gradient-to-r from-success to-success/80" size="lg">
-                  <Gift className="w-5 h-5 mr-2" />
-                  Coletar Recompensa
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="rounded-3xl">
-                <DialogHeader>
-                  <DialogTitle className="text-2xl">Coletar Recompensa</DialogTitle>
-                  <DialogDescription>
-                    Você precisa validar o PIN da loja para coletar sua recompensa
-                  </DialogDescription>
-                </DialogHeader>
-                <DialogFooter className="gap-2">
-                  <Button
-                    variant="outline"
-                    onClick={() => setIsCollectRewardOpen(false)}
-                    className="rounded-2xl"
-                  >
-                    Cancelar
-                  </Button>
-                  <Button onClick={handleCollectRewardClick} className="rounded-2xl">
-                    Validar PIN
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          )}
-          
-          {/* PIN Validation Dialog for Collect Reward */}
-          <PinValidationDialog
-            open={isCollectPinValidationOpen}
-            onOpenChange={setIsCollectPinValidationOpen}
-            onValidate={handleCollectPinValidation}
-            title="Validar PIN para Coletar Recompensa"
-            description="Digite o PIN de 4-6 dígitos fornecido pela loja para confirmar a coleta da recompensa."
-            actionLabel="Coletar Recompensa"
-          />
-          
-          <Dialog open={isAddPointsOpen} onOpenChange={setIsAddPointsOpen}>
-            <DialogTrigger asChild>
-              <Button className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl" size="lg">
-                <Plus className="w-5 h-5 mr-2" />
-                Adicionar Pontos
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="rounded-3xl">
-              <DialogHeader>
-                <DialogTitle className="text-2xl">Adicionar Pontos</DialogTitle>
-                <DialogDescription>
-                  Digite a quantidade de pontos que deseja adicionar
-                </DialogDescription>
-              </DialogHeader>
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <Label htmlFor="pointsAmount" className="text-base">Quantidade de pontos</Label>
-                  <Input
-                    id="pointsAmount"
-                    type="number"
-                    min="1"
-                    value={pointsToAdd}
-                    onChange={(e) => setPointsToAdd(e.target.value)}
-                    placeholder="Ex: 10"
-                    className="h-14 text-lg rounded-2xl"
-                  />
-                </div>
-              </div>
-              <DialogFooter className="gap-2">
+        {/* Danger Zone */}
+        <Card className="p-6 border-destructive/30 bg-destructive/5">
+          <h3 className="font-semibold text-destructive mb-4 text-lg">Zona de Perigo</h3>
+          <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full justify-start text-foreground hover:bg-accent"
+              onClick={() => navigate(`/edit-card/${id}`)}
+            >
+              <Edit className="w-4 h-4 mr-2" />
+              Editar Cartão
+            </Button>
+
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
                 <Button
-                  variant="outline"
-                  onClick={() => {
-                    setIsAddPointsOpen(false);
-                    setPointsToAdd("");
-                  }}
-                  className="rounded-2xl"
+                  variant="destructive"
+                  className="w-full justify-start"
                 >
-                  Cancelar
+                  <Trash2 className="w-4 h-4 mr-2" />
+                  Excluir Cartão
                 </Button>
-                <Button onClick={handleAddPointsClick} className="rounded-2xl">
-                  Validar PIN
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-          
-          {/* PIN Validation Dialog for Add Points */}
-          <PinValidationDialog
-            open={isPinValidationOpen}
-            onOpenChange={setIsPinValidationOpen}
-            onValidate={handlePinValidation}
-            title="Validar PIN para Adicionar Pontos"
-            description="Digite o PIN de 4-6 dígitos fornecido pela loja para confirmar a adição de pontos."
-            actionLabel="Adicionar Pontos"
-          />
-        </div>
-
-        {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            onClick={() => navigate(`/edit-card/${card.id}`)}
-            variant="outline"
-            className="h-14 rounded-2xl"
-          >
-            <Edit className="w-4 h-4 mr-2" />
-            Editar
-          </Button>
-
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="h-14 rounded-2xl">
-                <Trash2 className="w-4 h-4 mr-2" />
-                Excluir
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent className="rounded-3xl">
-              <AlertDialogHeader>
-                <AlertDialogTitle className="text-xl">Confirmar exclusão</AlertDialogTitle>
-                <AlertDialogDescription className="text-base">
-                  Tem certeza que deseja excluir o cartão <span className="font-semibold">"{card.storeName}"</span>? Esta ação não pode ser desfeita.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel className="rounded-2xl">Cancelar</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDelete} className="rounded-2xl bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                  Excluir
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </div>
-
-        {/* Celebration Dialog */}
-        {celebrationDialog.type && (
-          <CelebrationDialog
-            open={celebrationDialog.open}
-            onClose={() => setCelebrationDialog({ open: false, type: null })}
-            storeName={card.storeName}
-            type={celebrationDialog.type}
-          />
-        )}
-
-        {/* QR Code Display */}
-        <QRCodeDisplay
-          open={showQRCode}
-          onClose={() => setShowQRCode(false)}
-          card={card}
-        />
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Tem certeza?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Esta ação não pode ser desfeita. Isso excluirá permanentemente o cartão
+                    e todos os dados associados.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={handleDelete}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Excluir
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
+        </Card>
       </main>
+
+      {/* Temporary QR Code Dialog */}
+      <TemporaryQRCode 
+        open={showQRCode} 
+        onClose={() => setShowQRCode(false)} 
+        card={card}
+        actionType={qrActionType}
+      />
+
+      {/* Celebration Dialog */}
+      <CelebrationDialog
+        open={celebrationDialog.open}
+        onClose={() => setCelebrationDialog({ open: false, type: null })}
+        type={celebrationDialog.type || "complete"}
+        storeName={card.storeName}
+      />
     </div>
   );
 };
