@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { useLocalStorage } from "@/hooks/useLocalStorage";
-import { LoyaltyCard } from "@/types/card";
+import { useCards } from "@/hooks/useCards";
+import { useTransactionToken } from "@/hooks/useTransactionToken";
+import { useAuditLog } from "@/hooks/useAuditLog";
+import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -14,26 +16,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, QrCode, Plus, Gift } from "lucide-react";
+import { ArrowLeft, QrCode, Plus, Gift, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { QRScanner } from "@/components/cards/QRScanner";
-
-interface ScannedData {
-  cardId: string;
-  storeName: string;
-  userName: string;
-  storePin: string;
-  points: number;
-}
+import { PinValidationDialog } from "@/components/cards/PinValidationDialog";
 
 const StorePanel = () => {
   const navigate = useNavigate();
-  const [cards, setCards] = useLocalStorage<LoyaltyCard[]>("loyalty-cards", []);
+  const { currentUser } = useAuth();
+  const { addTransaction, cards, refetch } = useCards();
+  const { validateToken, markTokenAsUsed } = useTransactionToken();
+  const { logAction, getLocation } = useAuditLog();
+
   const [showScanner, setShowScanner] = useState(false);
-  const [scannedData, setScannedData] = useState<ScannedData | null>(null);
-  const [actionType, setActionType] = useState<"add" | "collect" | null>(null);
-  const [pinInput, setPinInput] = useState("");
+  const [scannedToken, setScannedToken] = useState<string | null>(null);
+  const [tokenData, setTokenData] = useState<any>(null);
+  const [showPinDialog, setShowPinDialog] = useState(false);
   const [pointsToAdd, setPointsToAdd] = useState("");
 
   const triggerConfetti = () => {
@@ -66,136 +65,204 @@ const StorePanel = () => {
     }, 250);
   };
 
-  const handleQRScan = (data: string) => {
+  const handleQRScan = async (data: string) => {
+    const location = await getLocation();
+    
+    // O data agora é simplesmente o token temporário
+    const result = await validateToken(data);
+
+    if (!result.success || !result.tokenData) {
+      await logAction({
+        action: 'scan_qr',
+        status: 'failed',
+        errorMessage: result.error,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+
+      toast.error(result.error || "Token inválido ou expirado");
+      setShowScanner(false);
+      return;
+    }
+
+    await logAction({
+      cardId: result.tokenData.cardId,
+      action: 'scan_qr',
+      status: 'success',
+      latitude: location?.latitude,
+      longitude: location?.longitude,
+    });
+
+    setScannedToken(data);
+    setTokenData(result.tokenData);
+    setShowScanner(false);
+    
+    // Se for adicionar pontos, mostrar dialog para quantidade
+    if (result.tokenData.actionType === 'add_points') {
+      // Pode mostrar dialog para quantidade, mas vou simplificar e pedir PIN direto
+      setShowPinDialog(true);
+    } else {
+      // Se for coletar recompensa, pedir PIN direto
+      setShowPinDialog(true);
+    }
+  };
+
+  const handlePinValidation = async (pin: string): Promise<boolean> => {
+    if (!tokenData || !scannedToken) return false;
+
+    const location = await getLocation();
+
+    // Buscar o cartão para validar o PIN
+    const card = cards.find((c) => c.id === tokenData.cardId);
+    
+    if (!card) {
+      await logAction({
+        cardId: tokenData.cardId,
+        action: `${tokenData.actionType}_pin_validation`,
+        status: 'failed',
+        errorMessage: 'Cartão não encontrado',
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+
+      toast.error("Cartão não encontrado");
+      return false;
+    }
+
+    // Validar PIN
+    if (pin !== card.storePin) {
+      await logAction({
+        cardId: card.id,
+        action: `${tokenData.actionType}_pin_validation`,
+        status: 'failed',
+        errorMessage: 'PIN incorreto',
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+
+      return false;
+    }
+
+    // PIN válido, processar ação
     try {
-      const parsed: ScannedData = JSON.parse(data);
-      
-      // Find the card in local storage
-      const card = cards.find((c) => c.id === parsed.cardId);
-      
-      if (!card) {
-        toast.error("Cartão não encontrado no sistema");
-        setShowScanner(false);
-        return;
+      if (tokenData.actionType === 'add_points') {
+        const points = parseInt(pointsToAdd) || 1;
+        if (points <= 0) {
+          toast.error("Por favor, insira uma quantidade válida de pontos");
+          return false;
+        }
+
+        const result = await addTransaction(
+          card.id,
+          "points_added",
+          points,
+          card.storeName,
+          card.userName
+        );
+
+        if (result.success) {
+          await markTokenAsUsed(tokenData.id);
+          
+          await logAction({
+            cardId: card.id,
+            action: 'add_points',
+            status: 'success',
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          });
+
+          triggerConfetti();
+          toast.success(`${points} ${points === 1 ? "ponto adicionado" : "pontos adicionados"} com sucesso!`);
+          await refetch();
+          resetDialog();
+          return true;
+        } else {
+          await logAction({
+            cardId: card.id,
+            action: 'add_points',
+            status: 'failed',
+            errorMessage: result.error,
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          });
+
+          toast.error(result.error || "Erro ao adicionar pontos");
+          return false;
+        }
+      } else if (tokenData.actionType === 'collect_reward') {
+        if (card.points < 10) {
+          await logAction({
+            cardId: card.id,
+            action: 'collect_reward',
+            status: 'failed',
+            errorMessage: 'Pontos insuficientes',
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          });
+
+          toast.error("Este cartão ainda não tem 10 pontos para validar a recompensa");
+          return false;
+        }
+
+        const result = await addTransaction(
+          card.id,
+          "reward_collected",
+          10,
+          card.storeName,
+          card.userName
+        );
+
+        if (result.success) {
+          await markTokenAsUsed(tokenData.id);
+          
+          await logAction({
+            cardId: card.id,
+            action: 'collect_reward',
+            status: 'success',
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          });
+
+          triggerConfetti();
+          toast.success("Parabéns! Recompensa confirmada e cartão reiniciado.");
+          await refetch();
+          resetDialog();
+          return true;
+        } else {
+          await logAction({
+            cardId: card.id,
+            action: 'collect_reward',
+            status: 'failed',
+            errorMessage: result.error,
+            latitude: location?.latitude,
+            longitude: location?.longitude,
+          });
+
+          toast.error(result.error || "Erro ao validar recompensa");
+          return false;
+        }
       }
+    } catch (error: any) {
+      await logAction({
+        cardId: card.id,
+        action: tokenData.actionType,
+        status: 'failed',
+        errorMessage: error.message,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
 
-      setScannedData(parsed);
-      setShowScanner(false);
-      setActionType(null);
-    } catch (error) {
-      toast.error("QR Code inválido");
-      setShowScanner(false);
-    }
-  };
-
-  const handleAddPoints = () => {
-    if (!scannedData) return;
-
-    if (pinInput !== scannedData.storePin) {
-      toast.error("PIN incorreto");
-      return;
+      toast.error("Erro ao processar operação");
+      return false;
     }
 
-    const points = parseInt(pointsToAdd) || 0;
-    if (points <= 0) {
-      toast.error("Por favor, insira uma quantidade válida de pontos");
-      return;
-    }
-
-    const card = cards.find((c) => c.id === scannedData.cardId);
-    if (!card) {
-      toast.error("Cartão não encontrado");
-      return;
-    }
-
-    const newPoints = card.points + points;
-
-    // Create transaction record
-    const newTransaction = {
-      id: Date.now().toString(),
-      cardId: card.id,
-      type: "points_added" as const,
-      points: points,
-      storeName: card.storeName,
-      timestamp: new Date().toISOString(),
-    };
-
-    const updatedCards = cards.map((c) =>
-      c.id === scannedData.cardId
-        ? { 
-            ...c, 
-            points: newPoints, 
-            updatedAt: new Date().toISOString(),
-            transactions: [...(c.transactions || []), newTransaction]
-          }
-        : c
-    );
-    setCards(updatedCards);
-
-    triggerConfetti();
-    toast.success(`${points} ${points === 1 ? "ponto adicionado" : "pontos adicionados"} com sucesso!`);
-
-    // Check if card is complete
-    if (newPoints >= 10 && card.points < 10) {
-      setTimeout(() => {
-        toast.success(`🎉 Cartão de ${scannedData.userName} completado! Recompensa disponível!`);
-      }, 500);
-    }
-
-    resetDialog();
-  };
-
-  const handleCollectReward = () => {
-    if (!scannedData) return;
-
-    if (pinInput !== scannedData.storePin) {
-      toast.error("PIN incorreto");
-      return;
-    }
-
-    const card = cards.find((c) => c.id === scannedData.cardId);
-    if (!card) {
-      toast.error("Cartão não encontrado");
-      return;
-    }
-
-    if (card.points < 10) {
-      toast.error("Este cartão ainda não tem 10 pontos para validar a recompensa");
-      return;
-    }
-
-    // Create transaction record
-    const newTransaction = {
-      id: Date.now().toString(),
-      cardId: card.id,
-      type: "reward_collected" as const,
-      points: 10,
-      storeName: card.storeName,
-      timestamp: new Date().toISOString(),
-    };
-
-    const updatedCards = cards.map((c) =>
-      c.id === scannedData.cardId
-        ? { 
-            ...c, 
-            points: 0, 
-            updatedAt: new Date().toISOString(),
-            transactions: [...(c.transactions || []), newTransaction]
-          }
-        : c
-    );
-    setCards(updatedCards);
-
-    triggerConfetti();
-    toast.success("Parabéns! Recompensa confirmada e cartão reiniciado.");
-
-    resetDialog();
+    return false;
   };
 
   const resetDialog = () => {
-    setScannedData(null);
-    setActionType(null);
-    setPinInput("");
+    setScannedToken(null);
+    setTokenData(null);
+    setShowPinDialog(false);
     setPointsToAdd("");
   };
 
@@ -221,10 +288,20 @@ const StorePanel = () => {
       <main className="container mx-auto px-4 py-6 animate-fade-in">
         {/* Info Card */}
         <Card className="p-6 mb-6 border-0 shadow-md">
-          <h2 className="text-xl font-bold text-foreground mb-2">Bem-vindo ao Modo Empresa</h2>
+          <h2 className="text-xl font-bold text-foreground mb-2">
+            Bem-vindo{currentUser?.name ? `, ${currentUser.name}` : ""}
+          </h2>
           <p className="text-muted-foreground">
-            Escaneie o QR Code do cliente para adicionar pontos ou validar recompensas de forma rápida e segura.
+            Escaneie o QR Code temporário do cliente para adicionar pontos ou validar recompensas de forma rápida e segura.
           </p>
+          <div className="mt-4 p-3 bg-primary/10 rounded-lg">
+            <p className="text-sm font-medium text-primary">
+              🔒 Sistema de Segurança Ativado
+            </p>
+            <p className="text-xs text-muted-foreground mt-1">
+              QR codes temporários com validade de 30 segundos e log de auditoria completo
+            </p>
+          </div>
         </Card>
 
         {/* Scan Button */}
@@ -234,7 +311,7 @@ const StorePanel = () => {
           size="lg"
         >
           <QrCode className="w-6 h-6 mr-2" />
-          Escanear QR Code
+          Escanear QR Code Temporário
         </Button>
 
         {/* Instructions */}
@@ -245,13 +322,13 @@ const StorePanel = () => {
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
                 1
               </span>
-              <span>Clique em "Escanear QR Code" e aponte a câmera para o código do cliente</span>
+              <span>Cliente gera QR Code temporário no app (válido por 30 segundos)</span>
             </li>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
                 2
               </span>
-              <span>Escolha se deseja adicionar pontos ou validar recompensa</span>
+              <span>Clique em "Escanear QR Code Temporário" e aponte a câmera para o código</span>
             </li>
             <li className="flex gap-3">
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
@@ -263,7 +340,7 @@ const StorePanel = () => {
               <span className="flex-shrink-0 w-6 h-6 rounded-full bg-primary/10 text-primary flex items-center justify-center font-semibold text-xs">
                 4
               </span>
-              <span>Pronto! Os pontos serão atualizados automaticamente</span>
+              <span>Pronto! Todas as ações são registradas no log de auditoria</span>
             </li>
           </ol>
         </Card>
@@ -277,132 +354,65 @@ const StorePanel = () => {
         />
       )}
 
-      {/* Action Selection Dialog */}
-      <Dialog open={scannedData !== null && actionType === null} onOpenChange={(open) => !open && resetDialog()}>
-        <DialogContent className="rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">QR Code Lido</DialogTitle>
-            <DialogDescription>
-              Cliente: <span className="font-semibold">{scannedData?.userName}</span>
-              <br />
-              Loja: <span className="font-semibold">{scannedData?.storeName}</span>
-              <br />
-              Pontos atuais: <span className="font-semibold">{scannedData?.points}</span>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-3 py-4">
-            <Button
-              onClick={() => setActionType("add")}
-              className="w-full h-14 text-lg rounded-2xl"
-            >
-              <Plus className="w-5 h-5 mr-2" />
-              Adicionar Pontos
-            </Button>
-            {scannedData && scannedData.points >= 10 && (
+      {/* Points Input Dialog (apenas para add_points) */}
+      {tokenData?.actionType === 'add_points' && showPinDialog && (
+        <Dialog open={true} onOpenChange={(open) => !open && resetDialog()}>
+          <DialogContent className="rounded-3xl">
+            <DialogHeader>
+              <DialogTitle className="text-2xl">Quantidade de Pontos</DialogTitle>
+              <DialogDescription>
+                Digite quantos pontos deseja adicionar
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-4 py-4">
+              <div className="space-y-2">
+                <Label htmlFor="pointsAmount" className="text-base">Quantidade de pontos</Label>
+                <Input
+                  id="pointsAmount"
+                  type="number"
+                  min="1"
+                  value={pointsToAdd}
+                  onChange={(e) => setPointsToAdd(e.target.value)}
+                  placeholder="Ex: 1"
+                  className="h-14 text-lg rounded-2xl"
+                  autoFocus
+                />
+              </div>
+            </div>
+            <DialogFooter className="gap-2">
               <Button
-                onClick={() => setActionType("collect")}
-                className="w-full h-14 text-lg rounded-2xl bg-gradient-to-r from-success to-success/80"
+                variant="outline"
+                onClick={resetDialog}
+                className="rounded-2xl"
               >
-                <Gift className="w-5 h-5 mr-2" />
-                Validar Recompensa
+                Cancelar
               </Button>
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+              <Button 
+                onClick={() => {
+                  if (!pointsToAdd || parseInt(pointsToAdd) <= 0) {
+                    toast.error("Digite uma quantidade válida");
+                    return;
+                  }
+                  // Continuar para validação de PIN
+                }} 
+                className="rounded-2xl"
+              >
+                Continuar
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
 
-      {/* Add Points Dialog */}
-      <Dialog open={actionType === "add"} onOpenChange={(open) => !open && setActionType(null)}>
-        <DialogContent className="rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Adicionar Pontos</DialogTitle>
-            <DialogDescription>
-              Digite o PIN da loja e a quantidade de pontos
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="pin" className="text-base">PIN da Loja</Label>
-              <Input
-                id="pin"
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-                placeholder="0000"
-                className="h-14 text-lg text-center tracking-widest rounded-2xl"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pointsAmount" className="text-base">Quantidade de pontos</Label>
-              <Input
-                id="pointsAmount"
-                type="number"
-                min="1"
-                value={pointsToAdd}
-                onChange={(e) => setPointsToAdd(e.target.value)}
-                placeholder="Ex: 1"
-                className="h-14 text-lg rounded-2xl"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setActionType(null);
-                setPinInput("");
-                setPointsToAdd("");
-              }}
-              className="rounded-2xl"
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleAddPoints} className="rounded-2xl">Confirmar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Collect Reward Dialog */}
-      <Dialog open={actionType === "collect"} onOpenChange={(open) => !open && setActionType(null)}>
-        <DialogContent className="rounded-3xl">
-          <DialogHeader>
-            <DialogTitle className="text-2xl">Validar Recompensa</DialogTitle>
-            <DialogDescription>
-              Digite o PIN da loja para validar a recompensa e reiniciar o cartão
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <Label htmlFor="collectPin" className="text-base">PIN da Loja</Label>
-              <Input
-                id="collectPin"
-                type="password"
-                inputMode="numeric"
-                maxLength={4}
-                value={pinInput}
-                onChange={(e) => setPinInput(e.target.value.replace(/\D/g, ""))}
-                placeholder="0000"
-                className="h-14 text-lg text-center tracking-widest rounded-2xl"
-              />
-            </div>
-          </div>
-          <DialogFooter className="gap-2">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setActionType(null);
-                setPinInput("");
-              }}
-              className="rounded-2xl"
-            >
-              Cancelar
-            </Button>
-            <Button onClick={handleCollectReward} className="rounded-2xl">Confirmar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* PIN Validation Dialog */}
+      <PinValidationDialog
+        open={showPinDialog && (tokenData?.actionType === 'collect_reward' || (tokenData?.actionType === 'add_points' && pointsToAdd !== ''))}
+        onOpenChange={setShowPinDialog}
+        onValidate={handlePinValidation}
+        title={tokenData?.actionType === 'add_points' ? 'Validar PIN para Adicionar Pontos' : 'Validar PIN para Coletar Recompensa'}
+        description="Digite o PIN de 4-6 dígitos fornecido pela loja para confirmar a operação."
+        actionLabel={tokenData?.actionType === 'add_points' ? 'Adicionar Pontos' : 'Coletar Recompensa'}
+      />
     </div>
   );
 };
