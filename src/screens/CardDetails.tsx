@@ -23,7 +23,7 @@ import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
 import { CelebrationDialog } from "@/components/gamification/CelebrationDialog";
-import { TemporaryQRCode } from "@/components/cards/TemporaryQRCode";
+import { QRCodeDisplay } from "@/components/cards/QRCodeDisplay";
 
 const CardDetails = () => {
   const navigate = useNavigate();
@@ -34,7 +34,6 @@ const CardDetails = () => {
   const { logAction, getLocation } = useAuditLog();
   
   const [showQRCode, setShowQRCode] = useState(false);
-  const [qrActionType, setQrActionType] = useState<'add_points' | 'collect_reward'>('add_points');
   const [celebrationDialog, setCelebrationDialog] = useState<{ open: boolean; type: "complete" | "reward" | null }>({ 
     open: false, 
     type: null 
@@ -121,18 +120,44 @@ const CardDetails = () => {
     }, 250);
   };
 
-  const handleShowQRForPoints = () => {
-    setQrActionType('add_points');
-    setShowQRCode(true);
-  };
-
-  const handleShowQRForReward = () => {
+  const handleCollectReward = async () => {
     if (card.points < 10) {
       toast.error("Você ainda não tem pontos suficientes para coletar uma recompensa");
       return;
     }
-    setQrActionType('collect_reward');
-    setShowQRCode(true);
+    
+    const location = await getLocation();
+    
+    const result = await updateCard(card.id, { points: card.points - 10 });
+    if (result?.success) {
+      await addTransaction(card.id, "reward_collected", 10, card.storeName, card.userName);
+      await incrementRewardsCollected();
+      await addReward();
+      
+      await logAction({
+        cardId: card.id,
+        action: 'collect_reward',
+        status: 'success',
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+      
+      setAnimatedPoints(card.points - 10);
+      setCelebrationDialog({ open: true, type: "reward" });
+      triggerConfetti();
+      toast.success("Recompensa coletada com sucesso! 🎉");
+    } else {
+      await logAction({
+        cardId: card.id,
+        action: 'collect_reward',
+        status: 'failed',
+        errorMessage: result?.error,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+      
+      toast.error(result?.error || "Erro ao coletar recompensa");
+    }
   };
 
   const cardColors = [
@@ -269,24 +294,24 @@ const CardDetails = () => {
           {/* Collect Reward Button */}
           {card.points >= 10 && (
             <Button 
-              onClick={handleShowQRForReward}
+              onClick={handleCollectReward}
               className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl bg-gradient-to-r from-success to-success/80" 
               size="lg"
             >
               <Gift className="w-5 h-5 mr-2" />
-              Coletar Recompensa (QR Seguro)
+              Coletar Recompensa
             </Button>
           )}
           
-          {/* Add Points Button */}
+          {/* Show QR Code Button */}
           <Button 
-            onClick={handleShowQRForPoints}
+            onClick={() => setShowQRCode(true)}
             className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl" 
             size="lg"
           >
             <QrCode className="w-5 h-5 mr-2" />
-            Adicionar Pontos (QR Seguro)
-            </Button>
+            Mostrar QR Code
+          </Button>
         </div>
 
         {/* Transaction History Button */}
@@ -346,12 +371,11 @@ const CardDetails = () => {
         </Card>
       </main>
 
-      {/* Temporary QR Code Dialog */}
-      <TemporaryQRCode 
+      {/* QR Code Dialog */}
+      <QRCodeDisplay 
         open={showQRCode} 
         onClose={() => setShowQRCode(false)} 
         card={card}
-        actionType={qrActionType}
       />
 
       {/* Celebration Dialog */}

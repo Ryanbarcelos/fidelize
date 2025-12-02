@@ -5,4 +5,3 @@ export { CardItem } from './CardItem';
 export { QRCodeDisplay } from './QRCodeDisplay';
 export { QRScanner } from './QRScanner';
 export { PinValidationDialog } from './PinValidationDialog';
-export { TemporaryQRCode } from './TemporaryQRCode';
