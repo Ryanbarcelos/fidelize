@@ -18,12 +18,13 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Edit, Trash2, Gift, QrCode, History } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Gift, QrCode, History, Plus } from "lucide-react";
+import { PinService } from "@/services/pinService";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
 import { CelebrationDialog } from "@/components/gamification/CelebrationDialog";
-import { QRCodeDisplay } from "@/components/cards/QRCodeDisplay";
+import { QRCodeDisplay, PinValidationDialog } from "@/components/cards";
 
 const CardDetails = () => {
   const navigate = useNavigate();
@@ -34,6 +35,7 @@ const CardDetails = () => {
   const { logAction, getLocation } = useAuditLog();
   
   const [showQRCode, setShowQRCode] = useState(false);
+  const [showAddPointsDialog, setShowAddPointsDialog] = useState(false);
   const [celebrationDialog, setCelebrationDialog] = useState<{ open: boolean; type: "complete" | "reward" | null }>({ 
     open: false, 
     type: null 
@@ -157,6 +159,65 @@ const CardDetails = () => {
       });
       
       toast.error(result?.error || "Erro ao coletar recompensa");
+    }
+  };
+
+  const handleAddPointsPin = async (pin: string): Promise<boolean> => {
+    const location = await getLocation();
+    
+    // Validar PIN usando o serviço
+    const validation = PinService.validateForAddPoints(pin, card.storePin);
+    
+    if (!validation.valid) {
+      await logAction({
+        cardId: card.id,
+        action: 'add_points',
+        status: 'failed',
+        errorMessage: validation.error,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+      
+      toast.error(validation.error);
+      return false;
+    }
+
+    // Adicionar 1 ponto
+    const newPoints = card.points + 1;
+    const result = await updateCard(card.id, { points: newPoints });
+    
+    if (result?.success) {
+      await addTransaction(card.id, "points_added", 1, card.storeName, card.userName);
+      
+      await logAction({
+        cardId: card.id,
+        action: 'add_points',
+        status: 'success',
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+      
+      setAnimatedPoints(newPoints);
+      toast.success("1 ponto adicionado com sucesso!");
+      
+      if (newPoints >= 10 && card.points < 10) {
+        triggerConfetti();
+        setCelebrationDialog({ open: true, type: "complete" });
+      }
+      
+      return true;
+    } else {
+      await logAction({
+        cardId: card.id,
+        action: 'add_points',
+        status: 'failed',
+        errorMessage: result?.error,
+        latitude: location?.latitude,
+        longitude: location?.longitude,
+      });
+      
+      toast.error(result?.error || "Erro ao adicionar pontos");
+      return false;
     }
   };
 
@@ -303,10 +364,21 @@ const CardDetails = () => {
             </Button>
           )}
           
+          {/* Add Points Button */}
+          <Button 
+            onClick={() => setShowAddPointsDialog(true)}
+            className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl" 
+            size="lg"
+          >
+            <Plus className="w-5 h-5 mr-2" />
+            Adicionar Pontos
+          </Button>
+          
           {/* Show QR Code Button */}
           <Button 
             onClick={() => setShowQRCode(true)}
-            className="w-full h-14 text-lg rounded-2xl shadow-lg hover:shadow-xl" 
+            variant="outline"
+            className="w-full h-14 text-lg rounded-2xl shadow-md hover:shadow-lg" 
             size="lg"
           >
             <QrCode className="w-5 h-5 mr-2" />
@@ -376,6 +448,16 @@ const CardDetails = () => {
         open={showQRCode} 
         onClose={() => setShowQRCode(false)} 
         card={card}
+      />
+
+      {/* Add Points PIN Dialog */}
+      <PinValidationDialog
+        open={showAddPointsDialog}
+        onOpenChange={setShowAddPointsDialog}
+        onValidate={handleAddPointsPin}
+        title="Adicionar Pontos"
+        description="Digite o PIN de 4 dígitos da loja para adicionar 1 ponto ao cartão."
+        actionLabel="Adicionar Ponto"
       />
 
       {/* Celebration Dialog */}
