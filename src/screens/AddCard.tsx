@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useParams, useLocation } from "react-router-dom";
 import { useCards } from "@/hooks/useCards";
-import { useAchievements } from "@/hooks/useAchievements";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +16,6 @@ const AddCard = () => {
   const { id } = useParams();
   const { currentUser } = useAuth();
   const { cards, addCard, updateCard } = useCards();
-  const { updateAchievements } = useAchievements();
   
   // Get pre-filled store name from navigation state (from NearbyStores)
   const prefilledStoreName = location.state?.storeName || "";
@@ -101,8 +99,7 @@ const AddCard = () => {
         }
       }
 
-      // Update achievements
-      updateAchievements();
+      // Achievements are auto-updated
       
       setTimeout(() => {
         navigate("/");
