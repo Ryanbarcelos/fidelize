@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
 
@@ -30,49 +30,11 @@ export function useFidelityCards() {
   const { user, currentUser } = useAuth();
   const [cards, setCards] = useState<FidelityCard[]>([]);
   const [clients, setClients] = useState<FidelityClient[]>([]);
+  const [companyId, setCompanyId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (user) {
-      if (currentUser?.accountType === 'business') {
-        fetchClientsForCompany();
-      } else {
-        fetchMyCards();
-      }
-    } else {
-      setCards([]);
-      setClients([]);
-      setLoading(false);
-    }
-  }, [user, currentUser]);
-
-  // Real-time subscription for automatic updates
-  useEffect(() => {
+  const fetchMyCards = useCallback(async () => {
     if (!user) return;
-
-    const channel = supabase
-      .channel('fidelity-cards-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'fidelity_cards',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          // Refresh cards when any change happens
-          fetchMyCards();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
-
-  const fetchMyCards = async () => {
     try {
       setLoading(true);
       const { data, error } = await supabase
@@ -85,7 +47,7 @@ export function useFidelityCards() {
             share_code
           )
         `)
-        .eq("user_id", user!.id)
+        .eq("user_id", user.id)
         .order("created_at", { ascending: false });
 
       if (error) throw error;
@@ -111,9 +73,10 @@ export function useFidelityCards() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
 
-  const fetchClientsForCompany = async () => {
+  const fetchClientsForCompany = useCallback(async () => {
+    if (!user) return;
     try {
       setLoading(true);
       
@@ -121,15 +84,18 @@ export function useFidelityCards() {
       const { data: companyData, error: companyError } = await supabase
         .from("companies")
         .select("id")
-        .eq("owner_id", user!.id)
+        .eq("owner_id", user.id)
         .maybeSingle();
 
       if (companyError) throw companyError;
       if (!companyData) {
         setClients([]);
+        setCompanyId(null);
         setLoading(false);
         return;
       }
+
+      setCompanyId(companyData.id);
 
       // Then get all fidelity cards for this company
       const { data, error } = await supabase
@@ -173,7 +139,71 @@ export function useFidelityCards() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [user]);
+
+  useEffect(() => {
+    if (user) {
+      if (currentUser?.accountType === 'business') {
+        fetchClientsForCompany();
+      } else {
+        fetchMyCards();
+      }
+    } else {
+      setCards([]);
+      setClients([]);
+      setLoading(false);
+    }
+  }, [user, currentUser, fetchMyCards, fetchClientsForCompany]);
+
+  // Real-time subscription for customer cards
+  useEffect(() => {
+    if (!user || currentUser?.accountType === 'business') return;
+
+    const channel = supabase
+      .channel('fidelity-cards-customer')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'fidelity_cards',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchMyCards();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, currentUser, fetchMyCards]);
+
+  // Real-time subscription for business (company clients)
+  useEffect(() => {
+    if (!user || currentUser?.accountType !== 'business' || !companyId) return;
+
+    const channel = supabase
+      .channel('fidelity-cards-business')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'fidelity_cards',
+          filter: `company_id=eq.${companyId}`,
+        },
+        () => {
+          fetchClientsForCompany();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, currentUser, companyId, fetchClientsForCompany]);
 
   const addStoreByCode = async (shareCode: string): Promise<{ success: boolean; error?: string }> => {
     if (!user) return { success: false, error: "Usuário não autenticado" };

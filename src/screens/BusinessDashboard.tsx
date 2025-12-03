@@ -5,7 +5,7 @@ import { useCards } from "@/hooks/useCards";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { useCompanies } from "@/hooks/useCompanies";
 import { supabase } from "@/integrations/supabase/client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -29,6 +29,7 @@ import { toast } from "sonner";
 
 const BusinessDashboard = () => {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
   const { cards, loading: cardsLoading } = useCards();
   const { clients, loading: clientsLoading } = useFidelityCards();
@@ -53,6 +54,32 @@ const BusinessDashboard = () => {
     },
     enabled: !!company?.id,
   });
+
+  // Real-time subscription for transactions
+  useEffect(() => {
+    if (!company?.id) return;
+
+    const channel = supabase
+      .channel('business-transactions-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'fidelity_transactions',
+          filter: `company_id=eq.${company.id}`,
+        },
+        () => {
+          // Invalidate and refetch transactions
+          queryClient.invalidateQueries({ queryKey: ["business-transactions", company.id] });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [company?.id, queryClient]);
 
   useEffect(() => {
     if (!authLoading && (!currentUser || currentUser.accountType !== 'business')) {
