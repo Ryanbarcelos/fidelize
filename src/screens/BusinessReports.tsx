@@ -19,6 +19,7 @@ import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
 import { 
   ArrowLeft, 
   TrendingUp, 
+  TrendingDown,
   Gift, 
   Users, 
   Calendar,
@@ -26,9 +27,16 @@ import {
   Minus,
   FileText,
   Download,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Crown,
+  Activity,
+  Target,
+  Clock,
+  Zap,
+  ArrowUpRight,
+  ArrowDownRight
 } from "lucide-react";
-import { format, subDays, startOfDay, startOfWeek, startOfMonth, startOfYear } from "date-fns";
+import { format, subDays, startOfDay, startOfWeek, startOfMonth, startOfYear, differenceInDays, parseISO } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { 
   BarChart, 
@@ -40,7 +48,12 @@ import {
   ResponsiveContainer,
   PieChart,
   Pie,
-  Cell
+  Cell,
+  LineChart,
+  Line,
+  Area,
+  AreaChart,
+  Legend
 } from "recharts";
 import { toast } from "sonner";
 import jsPDF from "jspdf";
@@ -71,6 +84,7 @@ const BusinessReports = () => {
     }
   };
 
+  // Fetch transactions
   const { data: transactions = [], isLoading } = useQuery({
     queryKey: ["business-reports", company?.id, period],
     queryFn: async () => {
@@ -95,6 +109,51 @@ const BusinessReports = () => {
     enabled: !!company?.id,
   });
 
+  // Fetch previous period transactions for comparison
+  const { data: previousTransactions = [] } = useQuery({
+    queryKey: ["business-reports-previous", company?.id, period],
+    queryFn: async () => {
+      if (!company?.id || period === "all") return [];
+      
+      const currentStart = getDateRange(period);
+      const daysDiff = differenceInDays(new Date(), currentStart);
+      const previousStart = subDays(currentStart, daysDiff + 1);
+      const previousEnd = subDays(currentStart, 1);
+      
+      const { data, error } = await supabase
+        .from("fidelity_transactions")
+        .select("*")
+        .eq("company_id", company.id)
+        .gte("created_at", previousStart.toISOString())
+        .lt("created_at", currentStart.toISOString());
+      
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!company?.id && period !== "all",
+  });
+
+  // Fetch earned promotions data
+  const { data: earnedPromotions = [] } = useQuery({
+    queryKey: ["business-promotions-report", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("earned_promotions")
+        .select(`
+          *,
+          automatic_promotions!inner(company_id)
+        `)
+        .eq("automatic_promotions.company_id", company.id);
+      
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!company?.id,
+  });
+
+  // Calculate main stats
   const stats = useMemo(() => {
     const pointsAdded = transactions
       .filter(t => t.type === "points_added")
@@ -120,18 +179,86 @@ const BusinessReports = () => {
     };
   }, [transactions]);
 
-  const dailyData = useMemo(() => {
-    const days = period === "today" ? 1 : period === "week" ? 7 : period === "month" ? 30 : 12;
-    const data: { name: string; pontos: number; recompensas: number }[] = [];
+  // Calculate previous period stats for comparison
+  const previousStats = useMemo(() => {
+    const pointsAdded = previousTransactions
+      .filter(t => t.type === "points_added")
+      .reduce((sum, t) => sum + t.points, 0);
+    
+    const activeClientIds = new Set(previousTransactions.map(t => t.user_id));
+    
+    return {
+      pointsAdded,
+      activeClients: activeClientIds.size,
+      totalTransactions: previousTransactions.length,
+    };
+  }, [previousTransactions]);
+
+  // Calculate growth percentages
+  const growth = useMemo(() => {
+    const calcGrowth = (current: number, previous: number) => {
+      if (previous === 0) return current > 0 ? 100 : 0;
+      return Math.round(((current - previous) / previous) * 100);
+    };
+
+    return {
+      points: calcGrowth(stats.pointsAdded, previousStats.pointsAdded),
+      clients: calcGrowth(stats.activeClients, previousStats.activeClients),
+      transactions: calcGrowth(stats.totalTransactions, previousStats.totalTransactions),
+    };
+  }, [stats, previousStats]);
+
+  // Top clients data
+  const topClients = useMemo(() => {
+    const clientPoints: Record<string, { points: number; transactions: number; userId: string }> = {};
+    
+    transactions.forEach(t => {
+      if (!clientPoints[t.user_id]) {
+        clientPoints[t.user_id] = { points: 0, transactions: 0, userId: t.user_id };
+      }
+      if (t.type === "points_added") {
+        clientPoints[t.user_id].points += t.points;
+      }
+      clientPoints[t.user_id].transactions++;
+    });
+
+    const sorted = Object.values(clientPoints)
+      .sort((a, b) => b.points - a.points)
+      .slice(0, 5);
+
+    // Match with client names
+    return sorted.map((item, index) => {
+      const client = clients.find(c => c.userId === item.userId);
+      return {
+        rank: index + 1,
+        name: client?.userName || `Cliente #${item.userId.slice(0, 6)}`,
+        email: client?.userEmail,
+        points: item.points,
+        transactions: item.transactions,
+        balance: client?.balance || 0,
+      };
+    });
+  }, [transactions, clients]);
+
+  // Daily evolution data for line chart
+  const evolutionData = useMemo(() => {
+    const days = period === "today" ? 24 : period === "week" ? 7 : period === "month" ? 30 : 12;
+    const data: { name: string; pontos: number; clientes: number; transacoes: number }[] = [];
     
     for (let i = days - 1; i >= 0; i--) {
       const date = subDays(new Date(), i);
-      const dayStr = period === "year" 
-        ? format(date, "MMM", { locale: ptBR })
-        : format(date, "dd/MM");
+      const dayStr = period === "today" 
+        ? `${23 - i}h`
+        : period === "year" 
+          ? format(date, "MMM", { locale: ptBR })
+          : format(date, "dd/MM");
       
       const dayTransactions = transactions.filter(t => {
         const transDate = new Date(t.created_at!);
+        if (period === "today") {
+          return transDate.getHours() === (23 - i) && 
+                 format(transDate, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+        }
         if (period === "year") {
           return transDate.getMonth() === date.getMonth() && 
                  transDate.getFullYear() === date.getFullYear();
@@ -143,21 +270,61 @@ const BusinessReports = () => {
         .filter(t => t.type === "points_added")
         .reduce((sum, t) => sum + t.points, 0);
       
-      const recompensas = dayTransactions
-        .filter(t => t.type === "reward_collected")
-        .length;
+      const clientes = new Set(dayTransactions.map(t => t.user_id)).size;
+      const transacoes = dayTransactions.length;
       
-      data.push({ name: dayStr, pontos, recompensas });
+      data.push({ name: dayStr, pontos, clientes, transacoes });
     }
     
     return data;
   }, [transactions, period]);
 
+  // Activity by hour of day
+  const hourlyActivity = useMemo(() => {
+    const hours = Array(24).fill(0);
+    
+    transactions.forEach(t => {
+      const hour = new Date(t.created_at!).getHours();
+      hours[hour]++;
+    });
+
+    return hours.map((count, hour) => ({
+      hour: `${hour}h`,
+      atividade: count,
+    }));
+  }, [transactions]);
+
+  // Activity by day of week
+  const weekdayActivity = useMemo(() => {
+    const days = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
+    const counts = Array(7).fill(0);
+    
+    transactions.forEach(t => {
+      const day = new Date(t.created_at!).getDay();
+      counts[day]++;
+    });
+
+    return days.map((name, i) => ({
+      name,
+      atividade: counts[i],
+    }));
+  }, [transactions]);
+
+  // Promotions stats
+  const promotionsStats = useMemo(() => {
+    const total = earnedPromotions.length;
+    const redeemed = earnedPromotions.filter(p => p.is_redeemed).length;
+    const pending = earnedPromotions.filter(p => p.pending_redemption && !p.is_redeemed).length;
+    const available = total - redeemed - pending;
+    
+    return { total, redeemed, pending, available };
+  }, [earnedPromotions]);
+
   const pieData = useMemo(() => {
     return [
-      { name: "Pontos Adicionados", value: stats.pointsAdded, color: "hsl(var(--chart-1))" },
-      { name: "Pontos Removidos", value: stats.pointsRemoved, color: "hsl(var(--chart-2))" },
-      { name: "Recompensas", value: stats.rewardsCollected * 10, color: "hsl(var(--chart-3))" },
+      { name: "Pontos Adicionados", value: stats.pointsAdded, color: "hsl(142, 76%, 36%)" },
+      { name: "Pontos Removidos", value: stats.pointsRemoved, color: "hsl(0, 84%, 60%)" },
+      { name: "Recompensas", value: stats.rewardsCollected * 10, color: "hsl(262, 83%, 58%)" },
     ].filter(d => d.value > 0);
   }, [stats]);
 
@@ -223,7 +390,6 @@ const BusinessReports = () => {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       
-      // Header
       doc.setFontSize(20);
       doc.setTextColor(79, 70, 229);
       doc.text("Relatório de Fidelidade", pageWidth / 2, 20, { align: "center" });
@@ -237,49 +403,43 @@ const BusinessReports = () => {
       doc.text(`Período: ${periodLabels[period]}`, pageWidth / 2, 38, { align: "center" });
       doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, pageWidth / 2, 44, { align: "center" });
 
-      // Summary Table
       doc.setFontSize(12);
       doc.setTextColor(0, 0, 0);
       doc.text("Resumo", 14, 58);
       
       autoTable(doc, {
         startY: 62,
-        head: [["Métrica", "Valor"]],
+        head: [["Métrica", "Valor", "Variação"]],
         body: [
-          ["Pontos Distribuídos", stats.pointsAdded.toString()],
-          ["Pontos Removidos", stats.pointsRemoved.toString()],
-          ["Recompensas Coletadas", stats.rewardsCollected.toString()],
-          ["Clientes Ativos", `${stats.activeClients} de ${clients.length}`],
-          ["Total de Transações", stats.totalTransactions.toString()],
+          ["Pontos Distribuídos", stats.pointsAdded.toString(), `${growth.points >= 0 ? '+' : ''}${growth.points}%`],
+          ["Pontos Removidos", stats.pointsRemoved.toString(), "-"],
+          ["Recompensas Coletadas", stats.rewardsCollected.toString(), "-"],
+          ["Clientes Ativos", `${stats.activeClients} de ${clients.length}`, `${growth.clients >= 0 ? '+' : ''}${growth.clients}%`],
+          ["Total de Transações", stats.totalTransactions.toString(), `${growth.transactions >= 0 ? '+' : ''}${growth.transactions}%`],
         ],
         theme: "striped",
         headStyles: { fillColor: [79, 70, 229] },
         margin: { left: 14, right: 14 },
       });
 
-      // Transactions Table
+      // Top Clients
       const finalY = (doc as any).lastAutoTable.finalY || 100;
-      doc.text("Últimas Transações", 14, finalY + 15);
+      doc.text("Top 5 Clientes", 14, finalY + 15);
       
-      const transactionRows = transactions.slice(0, 50).map(t => [
-        format(new Date(t.created_at!), "dd/MM/yyyy HH:mm"),
-        getTypeLabel(t.type),
-        t.points.toString(),
-        t.balance_after.toString(),
-        t.created_by === "business" ? "Loja" : "Cliente"
-      ]);
-
       autoTable(doc, {
         startY: finalY + 20,
-        head: [["Data", "Tipo", "Pontos", "Saldo", "Por"]],
-        body: transactionRows,
+        head: [["#", "Cliente", "Pontos Ganhos", "Transações"]],
+        body: topClients.map(c => [
+          c.rank.toString(),
+          c.name,
+          c.points.toString(),
+          c.transactions.toString()
+        ]),
         theme: "striped",
         headStyles: { fillColor: [79, 70, 229] },
         margin: { left: 14, right: 14 },
-        styles: { fontSize: 8 },
       });
 
-      // Footer
       const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
         doc.setPage(i);
@@ -300,6 +460,14 @@ const BusinessReports = () => {
       toast.error("Erro ao exportar PDF");
     }
   };
+
+  const GrowthIndicator = ({ value, label }: { value: number; label: string }) => (
+    <div className={`flex items-center gap-1 text-xs font-medium ${value >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+      {value >= 0 ? <ArrowUpRight className="w-3 h-3" /> : <ArrowDownRight className="w-3 h-3" />}
+      <span>{value >= 0 ? '+' : ''}{value}%</span>
+      <span className="text-muted-foreground font-normal">vs {label}</span>
+    </div>
+  );
 
   if (isLoading) {
     return (
@@ -327,10 +495,10 @@ const BusinessReports = () => {
               <ArrowLeft className="w-6 h-6" />
             </Button>
             <div className="flex-1">
-              <h1 className="text-2xl font-bold">Relatórios</h1>
+              <h1 className="text-2xl font-bold">Análise Inteligente</h1>
               <p className="text-white/80 text-sm">{currentUser?.storeName}</p>
             </div>
-            <FileText className="w-8 h-8 text-white/80" />
+            <Activity className="w-8 h-8 text-white/80" />
           </div>
         </div>
       </header>
@@ -356,7 +524,6 @@ const BusinessReports = () => {
               </Select>
             </div>
             
-            {/* Export Buttons */}
             <div className="flex gap-3">
               <Button 
                 onClick={exportToPDF}
@@ -378,7 +545,7 @@ const BusinessReports = () => {
           </div>
         </Card>
 
-        {/* Stats Cards */}
+        {/* Main KPIs with Growth */}
         <div className="grid grid-cols-2 gap-4">
           <Card className="p-5 rounded-2xl border-0 shadow-premium bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900">
             <div className="flex items-center gap-2 mb-2">
@@ -391,32 +558,7 @@ const BusinessReports = () => {
               value={stats.pointsAdded} 
               className="text-2xl font-bold text-foreground"
             />
-          </Card>
-
-          <Card className="p-5 rounded-2xl border-0 shadow-premium bg-gradient-to-br from-red-50 to-red-100 dark:from-red-950 dark:to-red-900">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-red-500 flex items-center justify-center">
-                <Minus className="w-5 h-5 text-white" />
-              </div>
-            </div>
-            <p className="text-xs font-medium text-muted-foreground mb-1">Pontos Removidos</p>
-            <AnimatedCounter 
-              value={stats.pointsRemoved} 
-              className="text-2xl font-bold text-foreground"
-            />
-          </Card>
-
-          <Card className="p-5 rounded-2xl border-0 shadow-premium bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
-            <div className="flex items-center gap-2 mb-2">
-              <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center">
-                <Gift className="w-5 h-5 text-white" />
-              </div>
-            </div>
-            <p className="text-xs font-medium text-muted-foreground mb-1">Recompensas</p>
-            <AnimatedCounter 
-              value={stats.rewardsCollected} 
-              className="text-2xl font-bold text-foreground"
-            />
+            {period !== "all" && <GrowthIndicator value={growth.points} label="período anterior" />}
           </Card>
 
           <Card className="p-5 rounded-2xl border-0 shadow-premium bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900">
@@ -430,28 +572,62 @@ const BusinessReports = () => {
               value={stats.activeClients} 
               className="text-2xl font-bold text-foreground"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              de {clients.length} total
+            {period !== "all" && <GrowthIndicator value={growth.clients} label="período anterior" />}
+          </Card>
+
+          <Card className="p-5 rounded-2xl border-0 shadow-premium bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-purple-500 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Transações</p>
+            <AnimatedCounter 
+              value={stats.totalTransactions} 
+              className="text-2xl font-bold text-foreground"
+            />
+            {period !== "all" && <GrowthIndicator value={growth.transactions} label="período anterior" />}
+          </Card>
+
+          <Card className="p-5 rounded-2xl border-0 shadow-premium bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900">
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-10 h-10 rounded-xl bg-amber-500 flex items-center justify-center">
+                <Gift className="w-5 h-5 text-white" />
+              </div>
+            </div>
+            <p className="text-xs font-medium text-muted-foreground mb-1">Promoções Resgatadas</p>
+            <AnimatedCounter 
+              value={promotionsStats.redeemed} 
+              className="text-2xl font-bold text-foreground"
+            />
+            <p className="text-xs text-muted-foreground">
+              {promotionsStats.pending} pendentes
             </p>
           </Card>
         </div>
 
-        {/* Bar Chart */}
+        {/* Evolution Line Chart */}
         <Card className="p-6 rounded-2xl border-0 shadow-premium">
           <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
-            <BarChart3 className="w-5 h-5 text-primary" />
-            Atividade - {periodLabels[period]}
+            <Activity className="w-5 h-5 text-primary" />
+            Evolução - {periodLabels[period]}
           </h3>
           
-          {dailyData.length > 0 ? (
+          {evolutionData.length > 0 ? (
             <div className="h-64">
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyData.slice(-14)}>
+                <AreaChart data={evolutionData.slice(-14)}>
+                  <defs>
+                    <linearGradient id="colorPontos" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3}/>
+                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0}/>
+                    </linearGradient>
+                  </defs>
                   <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
                   <XAxis 
                     dataKey="name" 
                     tick={{ fontSize: 10 }}
-                    interval={period === "month" ? 4 : 0}
+                    interval="preserveStartEnd"
                   />
                   <YAxis tick={{ fontSize: 10 }} />
                   <Tooltip 
@@ -461,19 +637,24 @@ const BusinessReports = () => {
                       boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
                     }}
                   />
-                  <Bar 
+                  <Area 
+                    type="monotone"
                     dataKey="pontos" 
-                    fill="hsl(var(--primary))" 
-                    radius={[4, 4, 0, 0]}
+                    stroke="hsl(var(--primary))"
+                    fillOpacity={1}
+                    fill="url(#colorPontos)"
                     name="Pontos"
+                    strokeWidth={2}
                   />
-                  <Bar 
-                    dataKey="recompensas" 
-                    fill="hsl(var(--chart-3))" 
-                    radius={[4, 4, 0, 0]}
-                    name="Recompensas"
+                  <Line 
+                    type="monotone"
+                    dataKey="clientes" 
+                    stroke="hsl(var(--chart-2))" 
+                    name="Clientes"
+                    strokeWidth={2}
+                    dot={false}
                   />
-                </BarChart>
+                </AreaChart>
               </ResponsiveContainer>
             </div>
           ) : (
@@ -481,6 +662,124 @@ const BusinessReports = () => {
               Nenhuma transação no período selecionado
             </div>
           )}
+        </Card>
+
+        {/* Top 5 Clients */}
+        <Card className="p-6 rounded-2xl border-0 shadow-premium">
+          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+            <Crown className="w-5 h-5 text-amber-500" />
+            Top 5 Clientes Mais Ativos
+          </h3>
+          
+          {topClients.length > 0 ? (
+            <div className="space-y-3">
+              {topClients.map((client, index) => (
+                <div 
+                  key={index}
+                  className={`flex items-center gap-4 p-3 rounded-xl ${
+                    index === 0 ? 'bg-gradient-to-r from-amber-100 to-yellow-100 dark:from-amber-900/30 dark:to-yellow-900/30' :
+                    index === 1 ? 'bg-gradient-to-r from-slate-100 to-gray-100 dark:from-slate-800/30 dark:to-gray-800/30' :
+                    index === 2 ? 'bg-gradient-to-r from-orange-100 to-amber-100 dark:from-orange-900/30 dark:to-amber-900/30' :
+                    'bg-muted/30'
+                  }`}
+                >
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-white ${
+                    index === 0 ? 'bg-gradient-to-br from-amber-400 to-yellow-500' :
+                    index === 1 ? 'bg-gradient-to-br from-slate-400 to-gray-500' :
+                    index === 2 ? 'bg-gradient-to-br from-orange-400 to-amber-500' :
+                    'bg-muted-foreground/50'
+                  }`}>
+                    {client.rank}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-foreground truncate">{client.name}</p>
+                    {client.email && (
+                      <p className="text-xs text-muted-foreground truncate">{client.email}</p>
+                    )}
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-foreground">{client.points} pts</p>
+                    <p className="text-xs text-muted-foreground">{client.transactions} transações</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-muted-foreground">
+              Nenhum cliente ativo no período
+            </div>
+          )}
+        </Card>
+
+        {/* Activity by Day of Week */}
+        <Card className="p-6 rounded-2xl border-0 shadow-premium">
+          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+            <Calendar className="w-5 h-5 text-primary" />
+            Atividade por Dia da Semana
+          </h3>
+          
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={weekdayActivity}>
+                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: '12px',
+                    border: 'none',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                  }}
+                />
+                <Bar 
+                  dataKey="atividade" 
+                  fill="hsl(var(--primary))" 
+                  radius={[8, 8, 0, 0]}
+                  name="Transações"
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </Card>
+
+        {/* Activity by Hour */}
+        <Card className="p-6 rounded-2xl border-0 shadow-premium">
+          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+            <Clock className="w-5 h-5 text-primary" />
+            Horários de Pico
+          </h3>
+          
+          <div className="h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={hourlyActivity.filter((_, i) => i >= 6 && i <= 23)}>
+                <defs>
+                  <linearGradient id="colorHourly" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--chart-2))" stopOpacity={0.3}/>
+                    <stop offset="95%" stopColor="hsl(var(--chart-2))" stopOpacity={0}/>
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="opacity-30" />
+                <XAxis dataKey="hour" tick={{ fontSize: 9 }} interval={2} />
+                <YAxis tick={{ fontSize: 10 }} />
+                <Tooltip 
+                  contentStyle={{ 
+                    borderRadius: '12px',
+                    border: 'none',
+                    boxShadow: '0 4px 20px rgba(0,0,0,0.1)'
+                  }}
+                />
+                <Area 
+                  type="monotone"
+                  dataKey="atividade" 
+                  stroke="hsl(var(--chart-2))"
+                  fillOpacity={1}
+                  fill="url(#colorHourly)"
+                  name="Transações"
+                  strokeWidth={2}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
         </Card>
 
         {/* Pie Chart */}
@@ -521,21 +820,66 @@ const BusinessReports = () => {
           </Card>
         )}
 
-        {/* Summary */}
+        {/* Business Insights */}
         <Card className="p-6 rounded-2xl border-0 shadow-premium bg-gradient-to-br from-primary/5 to-primary/10">
-          <h3 className="font-bold text-foreground mb-3">📊 Resumo do Período</h3>
-          <div className="space-y-2 text-sm text-muted-foreground">
-            <p>• Total de transações: <strong className="text-foreground">{stats.totalTransactions}</strong></p>
-            <p>• Média de pontos por transação: <strong className="text-foreground">
-              {stats.totalTransactions > 0 
-                ? Math.round(stats.pointsAdded / Math.max(transactions.filter(t => t.type === "points_added").length, 1))
-                : 0}
-            </strong></p>
-            <p>• Taxa de recompensas: <strong className="text-foreground">
-              {clients.length > 0 
-                ? Math.round((stats.rewardsCollected / clients.length) * 100)
-                : 0}%
-            </strong> dos clientes</p>
+          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+            <Target className="w-5 h-5 text-primary" />
+            Insights do Negócio
+          </h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex items-start gap-3 p-3 bg-background/50 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-green-500/20 flex items-center justify-center flex-shrink-0">
+                <TrendingUp className="w-4 h-4 text-green-600" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Taxa de Engajamento</p>
+                <p className="text-muted-foreground">
+                  {clients.length > 0 
+                    ? `${Math.round((stats.activeClients / clients.length) * 100)}% dos clientes estão ativos`
+                    : 'Nenhum cliente cadastrado'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 bg-background/50 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-blue-500/20 flex items-center justify-center flex-shrink-0">
+                <BarChart3 className="w-4 h-4 text-blue-600" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Média por Transação</p>
+                <p className="text-muted-foreground">
+                  {transactions.filter(t => t.type === "points_added").length > 0 
+                    ? `${Math.round(stats.pointsAdded / transactions.filter(t => t.type === "points_added").length)} pontos por compra`
+                    : 'Nenhuma transação'}
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3 p-3 bg-background/50 rounded-xl">
+              <div className="w-8 h-8 rounded-lg bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                <Gift className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="font-medium text-foreground">Promoções Automáticas</p>
+                <p className="text-muted-foreground">
+                  {promotionsStats.total} ganhas • {promotionsStats.redeemed} resgatadas • {promotionsStats.pending} aguardando
+                </p>
+              </div>
+            </div>
+
+            {topClients[0] && (
+              <div className="flex items-start gap-3 p-3 bg-background/50 rounded-xl">
+                <div className="w-8 h-8 rounded-lg bg-purple-500/20 flex items-center justify-center flex-shrink-0">
+                  <Crown className="w-4 h-4 text-purple-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-foreground">Melhor Cliente</p>
+                  <p className="text-muted-foreground">
+                    {topClients[0].name} com {topClients[0].points} pontos ganhos
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </Card>
       </main>
