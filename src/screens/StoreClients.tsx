@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCards } from "@/hooks/useCards";
 import { useFidelityCards, FidelityClient } from "@/hooks/useFidelityCards";
 import { useCompanies } from "@/hooks/useCompanies";
 import { useFidelityTransactions } from "@/hooks/useFidelityTransactions";
+import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -16,9 +17,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Search, User, TrendingUp, Gift, Users, Plus, Minus } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { ArrowLeft, Search, User, TrendingUp, Gift, Users, Plus, Minus, ChevronDown, BarChart3 } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
+import { ClientPointsChart } from "@/components/charts/ClientPointsChart";
+
+interface ClientTransaction {
+  id: string;
+  type: string;
+  points: number;
+  balance_after: number;
+  created_at: string;
+}
 
 const StoreClients = () => {
   const navigate = useNavigate();
@@ -37,6 +48,47 @@ const StoreClients = () => {
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [isValidating, setIsValidating] = useState(false);
+  
+  // Chart state
+  const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
+  const [clientTransactions, setClientTransactions] = useState<Record<string, ClientTransaction[]>>({});
+  const [loadingTransactions, setLoadingTransactions] = useState<Set<string>>(new Set());
+
+  const toggleClientChart = async (clientId: string, cardId: string) => {
+    const newExpanded = new Set(expandedClients);
+    
+    if (newExpanded.has(clientId)) {
+      newExpanded.delete(clientId);
+    } else {
+      newExpanded.add(clientId);
+      
+      // Fetch transactions if not already loaded
+      if (!clientTransactions[clientId]) {
+        setLoadingTransactions(prev => new Set(prev).add(clientId));
+        try {
+          const { data, error } = await supabase
+            .from("fidelity_transactions")
+            .select("id, type, points, balance_after, created_at")
+            .eq("fidelity_card_id", cardId)
+            .order("created_at", { ascending: true });
+          
+          if (!error && data) {
+            setClientTransactions(prev => ({ ...prev, [clientId]: data }));
+          }
+        } catch (err) {
+          console.error("Error fetching transactions:", err);
+        } finally {
+          setLoadingTransactions(prev => {
+            const next = new Set(prev);
+            next.delete(clientId);
+            return next;
+          });
+        }
+      }
+    }
+    
+    setExpandedClients(newExpanded);
+  };
 
   // Get legacy cards from loyalty_cards table
   const storeCards = useMemo(() => {
@@ -224,69 +276,104 @@ const StoreClients = () => {
             <div className="space-y-3">
               {filteredClients.map((client, index) => {
                 const progress = (client.balance / 10) * 100;
+                const isExpanded = expandedClients.has(client.id);
+                const isLoadingChart = loadingTransactions.has(client.id);
+                const transactions = clientTransactions[client.id] || [];
                 
                 return (
                   <Card 
                     key={client.id}
-                    className="p-4 border-0 shadow-md rounded-2xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900"
+                    className="border-0 shadow-md rounded-2xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900 overflow-hidden"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0">
-                        <User className="w-6 h-6 text-white" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-foreground">Cliente #{client.id.slice(0, 8)}</p>
-                        <p className="text-sm text-muted-foreground mb-2">
-                          Desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}
-                        </p>
-                        
-                        {/* Points Progress */}
-                        <div className="mb-3">
-                          <div className="flex justify-between items-center mb-1">
-                            <span className="text-sm text-muted-foreground">Progresso</span>
-                            <span className="text-sm font-medium text-foreground">
-                              {client.balance}/10 pontos
-                            </span>
-                          </div>
-                          <Progress value={Math.min(progress, 100)} className="h-2" />
+                    <div className="p-4">
+                      <div className="flex items-start gap-4">
+                        <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0">
+                          <User className="w-6 h-6 text-white" />
                         </div>
-                        
-                        {/* Status Badge */}
-                        {client.balance >= 10 && (
-                          <div className="inline-flex items-center gap-1 bg-success/10 text-success px-2 py-1 rounded-lg text-xs font-medium mb-2">
-                            <Gift className="w-3 h-3" />
-                            Recompensa disponível
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-foreground">Cliente #{client.id.slice(0, 8)}</p>
+                          <p className="text-sm text-muted-foreground mb-2">
+                            Desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}
+                          </p>
+                          
+                          {/* Points Progress */}
+                          <div className="mb-3">
+                            <div className="flex justify-between items-center mb-1">
+                              <span className="text-sm text-muted-foreground">Progresso</span>
+                              <span className="text-sm font-medium text-foreground">
+                                {client.balance}/10 pontos
+                              </span>
+                            </div>
+                            <Progress value={Math.min(progress, 100)} className="h-2" />
+                          </div>
+                          
+                          {/* Status Badge */}
+                          {client.balance >= 10 && (
+                            <div className="inline-flex items-center gap-1 bg-success/10 text-success px-2 py-1 rounded-lg text-xs font-medium mb-2">
+                              <Gift className="w-3 h-3" />
+                              Recompensa disponível
+                            </div>
+                          )}
+                          
+                          {/* Action Buttons */}
+                          <div className="flex gap-2 mt-2">
+                            <Button
+                              size="sm"
+                              onClick={() => openAddPointsDialog(client, "add")}
+                              className="flex-1 h-9 rounded-xl"
+                            >
+                              <Plus className="w-4 h-4 mr-1" />
+                              Adicionar
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openAddPointsDialog(client, "remove")}
+                              className="flex-1 h-9 rounded-xl"
+                              disabled={client.balance === 0}
+                            >
+                              <Minus className="w-4 h-4 mr-1" />
+                              Remover
+                            </Button>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-green-600">{client.balance}</p>
+                          <p className="text-xs text-muted-foreground">pontos</p>
+                        </div>
+                      </div>
+                      
+                      {/* Chart Toggle Button */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => toggleClientChart(client.id, client.id)}
+                        className="w-full mt-3 h-8 text-muted-foreground hover:text-foreground"
+                      >
+                        <BarChart3 className="w-4 h-4 mr-2" />
+                        Evolução de Pontos
+                        <ChevronDown className={`w-4 h-4 ml-auto transition-transform ${isExpanded ? "rotate-180" : ""}`} />
+                      </Button>
+                    </div>
+                    
+                    {/* Collapsible Chart */}
+                    {isExpanded && (
+                      <div className="px-4 pb-4 border-t border-green-200 dark:border-green-800">
+                        {isLoadingChart ? (
+                          <div className="h-48 flex items-center justify-center">
+                            <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+                          </div>
+                        ) : (
+                          <div className="pt-4">
+                            <ClientPointsChart 
+                              transactions={transactions} 
+                              clientId={client.id} 
+                            />
                           </div>
                         )}
-                        
-                        {/* Action Buttons */}
-                        <div className="flex gap-2 mt-2">
-                          <Button
-                            size="sm"
-                            onClick={() => openAddPointsDialog(client, "add")}
-                            className="flex-1 h-9 rounded-xl"
-                          >
-                            <Plus className="w-4 h-4 mr-1" />
-                            Adicionar
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => openAddPointsDialog(client, "remove")}
-                            className="flex-1 h-9 rounded-xl"
-                            disabled={client.balance === 0}
-                          >
-                            <Minus className="w-4 h-4 mr-1" />
-                            Remover
-                          </Button>
-                        </div>
                       </div>
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-green-600">{client.balance}</p>
-                        <p className="text-xs text-muted-foreground">pontos</p>
-                      </div>
-                    </div>
+                    )}
                   </Card>
                 );
               })}
