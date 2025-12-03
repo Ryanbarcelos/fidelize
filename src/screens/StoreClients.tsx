@@ -56,6 +56,50 @@ const StoreClients = () => {
   const [clientTransactions, setClientTransactions] = useState<Record<string, ClientTransaction[]>>({});
   const [loadingTransactions, setLoadingTransactions] = useState<Set<string>>(new Set());
 
+  // Real-time subscription for transactions
+  useEffect(() => {
+    if (!company?.id) return;
+
+    const channel = supabase
+      .channel('store-clients-transactions-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'fidelity_transactions',
+          filter: `company_id=eq.${company.id}`,
+        },
+        (payload) => {
+          const newTransaction = payload.new as any;
+          const cardId = newTransaction.fidelity_card_id;
+          
+          // Update clientTransactions if this client's chart is expanded
+          if (clientTransactions[cardId]) {
+            setClientTransactions(prev => ({
+              ...prev,
+              [cardId]: [...(prev[cardId] || []), {
+                id: newTransaction.id,
+                type: newTransaction.type,
+                points: newTransaction.points,
+                balance_after: newTransaction.balance_after,
+                created_at: newTransaction.created_at,
+              }]
+            }));
+          }
+          
+          toast.info(`Nova transação: ${newTransaction.type === 'points_added' ? '+' : '-'}${newTransaction.points} pontos`, {
+            duration: 3000,
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [company?.id, clientTransactions]);
+
   const toggleClientChart = async (clientId: string, cardId: string) => {
     const newExpanded = new Set(expandedClients);
     
