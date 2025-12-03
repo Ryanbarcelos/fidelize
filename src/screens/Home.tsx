@@ -1,10 +1,8 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
-import { useCards } from "@/hooks/useCards";
-import { useAchievements } from "@/hooks/useAchievements";
 import { useGamification } from "@/hooks/useGamification";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
-import { CardItem } from "@/components/cards/CardItem";
+import { FidelityCardItem } from "@/components/cards/FidelityCardItem";
 import { AddStoreModal } from "@/components/cards/AddStoreModal";
 import { SearchBar } from "@/components/common/SearchBar";
 import { SortSelect } from "@/components/common/SortSelect";
@@ -17,12 +15,10 @@ import { BottomNavigation } from "@/components/layout/BottomNavigation";
 const Home = () => {
   const navigate = useNavigate();
   const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
-  const { cards, loading: cardsLoading } = useCards();
   const { cards: fidelityCards, loading: fidelityLoading, refetchCards } = useFidelityCards();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
-  const { updateAchievements } = useAchievements();
   const { level, xpProgress } = useGamification();
 
   // Redirect to login if not authenticated
@@ -32,23 +28,16 @@ const Home = () => {
     }
   }, [authLoading, isAuthenticated, navigate]);
 
-  // Update achievements whenever cards change
-  useEffect(() => {
-    if (cards.length > 0) {
-      updateAchievements();
-    }
-  }, [cards, updateAchievements]);
-
   const filteredAndSortedCards = useMemo(() => {
-    let filtered = cards.filter((card) =>
-      card.storeName.toLowerCase().includes(searchQuery.toLowerCase())
+    let filtered = fidelityCards.filter((card) =>
+      (card.company?.name || "").toLowerCase().includes(searchQuery.toLowerCase())
     );
 
     filtered.sort((a, b) => {
       if (sortBy === "name") {
-        return a.storeName.localeCompare(b.storeName);
+        return (a.company?.name || "").localeCompare(b.company?.name || "");
       } else if (sortBy === "points") {
-        return b.points - a.points;
+        return b.balance - a.balance;
       } else if (sortBy === "date") {
         return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
       }
@@ -56,9 +45,9 @@ const Home = () => {
     });
 
     return filtered;
-  }, [cards, searchQuery, sortBy]);
+  }, [fidelityCards, searchQuery, sortBy]);
 
-  if (authLoading || cardsLoading || fidelityLoading) {
+  if (authLoading || fidelityLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -119,38 +108,6 @@ const Home = () => {
           </div>
         </Card>
 
-        {/* Fidelity Cards from Companies */}
-        {fidelityCards.length > 0 && (
-          <div className="mb-8 space-y-4 fade-in">
-            <h2 className="text-xl font-bold text-foreground tracking-tight">Cartões de Fidelidade</h2>
-            <div className="grid gap-4">
-              {fidelityCards.map((card, index) => (
-                <Card 
-                  key={card.id}
-                  className="p-4 rounded-2xl shadow-premium hover:shadow-premium-lg transition-all"
-                  style={{ animationDelay: `${index * 60}ms` }}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-14 h-14 rounded-2xl gradient-glow flex items-center justify-center">
-                      <span className="text-white text-xl font-bold">
-                        {card.company?.name?.charAt(0) || "L"}
-                      </span>
-                    </div>
-                    <div className="flex-1">
-                      <h3 className="font-bold text-foreground">{card.company?.name || "Loja"}</h3>
-                      <p className="text-sm text-muted-foreground">Código: {card.company?.shareCode}</p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-primary">{card.balance}</p>
-                      <p className="text-xs text-muted-foreground">pontos</p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          </div>
-        )}
-
         <div className="mb-8 space-y-4 fade-in">
           <h2 className="text-3xl font-bold text-foreground tracking-tight">Meus Cartões</h2>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -172,16 +129,16 @@ const Home = () => {
             <p className="text-muted-foreground mb-10 max-w-md mx-auto text-lg">
               {searchQuery
                 ? "Tente buscar com outros termos"
-                : "Adicione seu primeiro cartão de fidelidade e comece a acumular pontos"}
+                : "Adicione seu primeiro cartão de fidelidade digitando o código da loja acima"}
             </p>
             {!searchQuery && (
               <Button 
-                onClick={() => navigate("/add-card")}
+                onClick={() => setShowAddStoreModal(true)}
                 size="lg"
                 className="rounded-2xl shadow-premium-lg hover:shadow-glow transition-all hover:scale-105 h-14 px-8 text-base"
               >
                 <Plus className="w-5 h-5 mr-2" />
-                Adicionar Primeiro Cartão
+                Adicionar Primeira Loja
               </Button>
             )}
           </div>
@@ -193,23 +150,12 @@ const Home = () => {
                 className="fade-in"
                 style={{ animationDelay: `${index * 60}ms` }}
               >
-                <CardItem card={card} />
+                <FidelityCardItem card={card} />
               </div>
             ))}
           </div>
         )}
       </main>
-
-      {/* Premium Floating Action Button */}
-      <div className="fixed bottom-24 right-6 z-20">
-        <Button
-          size="lg"
-          onClick={() => navigate("/add-card")}
-          className="rounded-full w-16 h-16 shadow-premium-lg hover:shadow-glow transition-all hover:scale-110 gradient-glow"
-        >
-          <Plus className="w-7 h-7" />
-        </Button>
-      </div>
 
       {/* Add Store Modal */}
       <AddStoreModal

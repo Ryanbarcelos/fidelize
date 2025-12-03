@@ -7,6 +7,7 @@ export interface FidelityCard {
   userId: string;
   companyId: string;
   balance: number;
+  logo?: string;
   createdAt: string;
   updatedAt: string;
   company?: {
@@ -68,6 +69,7 @@ export function useFidelityCards() {
         userId: card.user_id,
         companyId: card.company_id,
         balance: card.balance,
+        logo: card.logo,
         createdAt: card.created_at,
         updatedAt: card.updated_at,
         company: card.companies ? {
@@ -214,6 +216,23 @@ export function useFidelityCards() {
     }
   };
 
+  const updateCardLogo = async (cardId: string, logo: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error } = await supabase
+        .from("fidelity_cards")
+        .update({ logo })
+        .eq("id", cardId);
+
+      if (error) throw error;
+
+      await fetchMyCards();
+      return { success: true };
+    } catch (error: any) {
+      console.error("Error updating card logo:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   return {
     cards,
     clients,
@@ -221,6 +240,7 @@ export function useFidelityCards() {
     addStoreByCode,
     updateCardBalance,
     deleteCard,
+    updateCardLogo,
     refetchCards: fetchMyCards,
     refetchClients: fetchClientsForCompany,
   };
