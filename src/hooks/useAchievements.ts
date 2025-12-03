@@ -202,6 +202,15 @@ export const useAchievements = () => {
           description: achievement.description,
           duration: 5000,
         });
+
+        // Create notification for achievement
+        await supabase.from("notifications").insert({
+          user_id: user.id,
+          title: `🎉 Conquista Desbloqueada!`,
+          description: `Você completou a conquista "${achievement.title}": ${achievement.description}`,
+          store_name: "Fidelize",
+          notification_type: "achievement",
+        });
       }
     } catch (error) {
       console.error("Error updating achievement:", error);

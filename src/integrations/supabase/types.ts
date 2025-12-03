@@ -349,11 +349,12 @@ export type Database = {
           description: string
           id: string
           image_url: string | null
-          promotion_id: string
+          notification_type: string | null
+          promotion_id: string | null
           read: boolean
           received_at: string
-          store_id: string
-          store_name: string
+          store_id: string | null
+          store_name: string | null
           title: string
           user_id: string
         }
@@ -361,11 +362,12 @@ export type Database = {
           description: string
           id?: string
           image_url?: string | null
-          promotion_id: string
+          notification_type?: string | null
+          promotion_id?: string | null
           read?: boolean
           received_at?: string
-          store_id: string
-          store_name: string
+          store_id?: string | null
+          store_name?: string | null
           title: string
           user_id: string
         }
@@ -373,11 +375,12 @@ export type Database = {
           description?: string
           id?: string
           image_url?: string | null
-          promotion_id?: string
+          notification_type?: string | null
+          promotion_id?: string | null
           read?: boolean
           received_at?: string
-          store_id?: string
-          store_name?: string
+          store_id?: string | null
+          store_name?: string | null
           title?: string
           user_id?: string
         }
