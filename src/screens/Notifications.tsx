@@ -107,7 +107,7 @@ const Notifications = () => {
                 onClick={() => handleNotificationClick(notification)}
               >
                 <div className="flex gap-4">
-                  {notification.imageUrl && (
+                  {notification.imageUrl ? (
                     <div className="w-16 h-16 rounded-xl overflow-hidden bg-muted flex-shrink-0">
                       <img
                         src={notification.imageUrl}
@@ -115,7 +115,11 @@ const Notifications = () => {
                         className="w-full h-full object-cover"
                       />
                     </div>
-                  )}
+                  ) : notification.notificationType === 'achievement' ? (
+                    <div className="w-16 h-16 rounded-xl bg-gradient-to-br from-yellow-400 to-orange-500 flex items-center justify-center flex-shrink-0">
+                      <span className="text-2xl">🏆</span>
+                    </div>
+                  ) : null}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start justify-between gap-2 mb-1">
                       <h3 className="font-semibold text-foreground">
@@ -125,9 +129,11 @@ const Notifications = () => {
                         <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 mt-1.5"></div>
                       )}
                     </div>
-                    <p className="text-sm text-primary font-medium mb-1">
-                      {notification.storeName}
-                    </p>
+                    {notification.storeName && (
+                      <p className="text-sm text-primary font-medium mb-1">
+                        {notification.storeName}
+                      </p>
+                    )}
                     <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
                       {notification.description}
                     </p>
