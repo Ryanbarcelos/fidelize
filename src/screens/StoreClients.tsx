@@ -5,6 +5,7 @@ import { useCards } from "@/hooks/useCards";
 import { useFidelityCards, FidelityClient } from "@/hooks/useFidelityCards";
 import { useCompanies } from "@/hooks/useCompanies";
 import { useFidelityTransactions } from "@/hooks/useFidelityTransactions";
+import { useAutomaticPromotions } from "@/hooks/useAutomaticPromotions";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -38,6 +39,7 @@ const StoreClients = () => {
   const { clients, loading: clientsLoading, updateCardBalance, refetchClients } = useFidelityCards();
   const { company, validateCompanyPin } = useCompanies();
   const { addTransaction } = useFidelityTransactions();
+  const { checkAndAwardPromotions } = useAutomaticPromotions();
   const [searchQuery, setSearchQuery] = useState("");
   
   // Dialog state for adding points
@@ -189,6 +191,25 @@ const StoreClients = () => {
           newBalance,
           "business"
         );
+        
+        // Check for automatic promotions when adding points
+        if (pointsAction === "add") {
+          const earnedPromotions = await checkAndAwardPromotions(
+            selectedClient.id,
+            selectedClient.userId,
+            newBalance,
+            company.id
+          );
+          
+          if (earnedPromotions.length > 0) {
+            earnedPromotions.forEach((ep) => {
+              toast.success(
+                `🎉 Cliente ganhou: ${ep.promotion?.title}`,
+                { duration: 5000 }
+              );
+            });
+          }
+        }
         
         await refetchClients();
         toast.success(

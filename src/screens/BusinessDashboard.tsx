@@ -18,7 +18,8 @@ import {
   UserCircle,
   BarChart3,
   Copy,
-  Check
+  Check,
+  Zap
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -294,6 +295,16 @@ const BusinessDashboard = () => {
           >
             <Megaphone className="w-5 h-5 mr-2" />
             Gerenciar Promoções
+          </Button>
+
+          <Button
+            onClick={() => navigate("/automatic-promotions")}
+            variant="outline"
+            className="w-full h-14 text-base rounded-3xl shadow-premium hover-scale bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/30 dark:to-orange-950/30 border-amber-200 dark:border-amber-800"
+            size="lg"
+          >
+            <Zap className="w-5 h-5 mr-2 text-amber-600" />
+            Promoções Automáticas
           </Button>
 
           <Button
