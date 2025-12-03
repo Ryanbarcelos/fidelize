@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { usePWA } from "@/hooks/usePWA";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -15,6 +16,7 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isVisible, setIsVisible] = useState(false);
+  const { isInstalled: isPWAInstalled } = usePWA();
 
   useEffect(() => {
     setIsVisible(true);
@@ -119,17 +121,19 @@ const Login = () => {
             </Link>
           </div>
 
-          {/* Install App Button */}
-          <div className="mt-6 pt-6 border-t">
-            <Button
-              variant="outline"
-              onClick={() => navigate("/install")}
-              className="w-full h-11 rounded-2xl"
-            >
-              <Download className="w-4 h-4 mr-2" />
-              Instalar App no Celular
-            </Button>
-          </div>
+          {/* Install App Button - only show if not installed as PWA */}
+          {!isPWAInstalled && (
+            <div className="mt-6 pt-6 border-t">
+              <Button
+                variant="outline"
+                onClick={() => navigate("/install")}
+                className="w-full h-11 rounded-2xl"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Instalar App no Celular
+              </Button>
+            </div>
+          )}
         </Card>
       </div>
     </div>
