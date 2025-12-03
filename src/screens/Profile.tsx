@@ -160,24 +160,26 @@ const Profile = () => {
           )}
         </Card>
 
-        {/* Premium Modo Empresa */}
-        <Card className="p-6 mb-6 border-0 shadow-premium rounded-3xl slide-in" style={{ animationDelay: '150ms' }}>
-          <h3 className="font-bold text-foreground mb-4 text-lg flex items-center gap-2">
-            <Store className="w-5 h-5 text-primary" />
-            Modo Empresa
-          </h3>
-          <p className="text-sm text-muted-foreground mb-5">
-            Acesse o painel da loja para escanear QR Codes de clientes e gerenciar pontos
-          </p>
-          <Button
-            onClick={() => navigate("/store-panel")}
-            variant="outline"
-            className="w-full h-12 rounded-2xl hover-scale"
-          >
-            <Store className="w-4 h-4 mr-2" />
-            Acessar Painel da Loja
-          </Button>
-        </Card>
+        {/* Premium Modo Empresa - apenas para contas business */}
+        {currentUser?.accountType === 'business' && (
+          <Card className="p-6 mb-6 border-0 shadow-premium rounded-3xl slide-in" style={{ animationDelay: '150ms' }}>
+            <h3 className="font-bold text-foreground mb-4 text-lg flex items-center gap-2">
+              <Store className="w-5 h-5 text-primary" />
+              Modo Empresa
+            </h3>
+            <p className="text-sm text-muted-foreground mb-5">
+              Acesse o painel da loja para escanear QR Codes de clientes e gerenciar pontos
+            </p>
+            <Button
+              onClick={() => navigate("/store-panel")}
+              variant="outline"
+              className="w-full h-12 rounded-2xl hover-scale"
+            >
+              <Store className="w-4 h-4 mr-2" />
+              Acessar Painel da Loja
+            </Button>
+          </Card>
+        )}
 
         {/* Premium Location Settings */}
         <Card className="p-6 mb-6 border-0 shadow-premium rounded-3xl slide-in" style={{ animationDelay: '200ms' }}>
