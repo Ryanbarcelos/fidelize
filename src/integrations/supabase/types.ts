@@ -112,6 +112,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "automatic_promotions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       companies: {
@@ -231,6 +238,13 @@ export type Database = {
             referencedRelation: "companies"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "fidelity_cards_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       fidelity_transactions: {
@@ -273,6 +287,13 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fidelity_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies_public"
             referencedColumns: ["id"]
           },
           {
@@ -604,9 +625,46 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      companies_public: {
+        Row: {
+          created_at: string | null
+          id: string | null
+          name: string | null
+          owner_id: string | null
+          share_code: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          owner_id?: string | null
+          share_code?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string | null
+          name?: string | null
+          owner_id?: string | null
+          share_code?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      find_company_by_share_code: {
+        Args: { p_share_code: string }
+        Returns: {
+          created_at: string
+          id: string
+          name: string
+          owner_id: string
+          share_code: string
+          updated_at: string
+        }[]
+      }
       generate_share_code: { Args: { store_name: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
     }

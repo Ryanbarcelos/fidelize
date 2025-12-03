@@ -12,11 +12,11 @@ interface QRCodeDisplayProps {
 export const QRCodeDisplay = ({ open, onClose, card }: QRCodeDisplayProps) => {
   const { currentUser } = useAuth();
   
+  // SECURITY: Never include storePin in QR code - it's validated server-side
   const qrData = JSON.stringify({
     cardId: card.id,
     storeName: card.storeName,
     userName: currentUser?.name || "Cliente",
-    storePin: card.storePin,
     points: card.points
   });
 
