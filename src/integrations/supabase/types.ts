@@ -626,6 +626,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_preferences: {
+        Row: {
+          created_at: string
+          id: string
+          notify_points: boolean
+          notify_promotions: boolean
+          notify_rewards: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notify_points?: boolean
+          notify_promotions?: boolean
+          notify_rewards?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notify_points?: boolean
+          notify_promotions?: boolean
+          notify_rewards?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       companies_public: {

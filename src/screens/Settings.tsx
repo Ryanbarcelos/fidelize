@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "@/hooks/useLocation";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,8 @@ import {
   MapPin,
   Save,
   Eye,
-  EyeOff
+  EyeOff,
+  Loader2
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -36,11 +37,85 @@ const Settings = () => {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+  const [loadingPreferences, setLoadingPreferences] = useState(true);
   
   // Notification preferences
   const [notifyPromotions, setNotifyPromotions] = useState(true);
   const [notifyRewards, setNotifyRewards] = useState(true);
   const [notifyPoints, setNotifyPoints] = useState(true);
+
+  // Load preferences from database
+  useEffect(() => {
+    const loadPreferences = async () => {
+      if (!user) return;
+      
+      try {
+        const { data, error } = await supabase
+          .from("user_preferences")
+          .select("*")
+          .eq("user_id", user.id)
+          .maybeSingle();
+
+        if (error) throw error;
+
+        if (data) {
+          setNotifyPromotions(data.notify_promotions);
+          setNotifyRewards(data.notify_rewards);
+          setNotifyPoints(data.notify_points);
+        } else {
+          // Create default preferences if not exists
+          await supabase.from("user_preferences").insert({
+            user_id: user.id,
+            notify_promotions: true,
+            notify_rewards: true,
+            notify_points: true,
+          });
+        }
+      } catch (error) {
+        console.error("Error loading preferences:", error);
+      } finally {
+        setLoadingPreferences(false);
+      }
+    };
+
+    loadPreferences();
+  }, [user]);
+
+  // Save notification preference when changed
+  const updateNotificationPreference = async (
+    field: 'notify_promotions' | 'notify_rewards' | 'notify_points',
+    value: boolean
+  ) => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from("user_preferences")
+        .update({ [field]: value })
+        .eq("user_id", user.id);
+
+      if (error) throw error;
+      toast.success("Preferência salva!");
+    } catch (error: any) {
+      toast.error("Erro ao salvar preferência");
+      console.error("Error saving preference:", error);
+    }
+  };
+
+  const handleNotifyPromotionsChange = (value: boolean) => {
+    setNotifyPromotions(value);
+    updateNotificationPreference('notify_promotions', value);
+  };
+
+  const handleNotifyRewardsChange = (value: boolean) => {
+    setNotifyRewards(value);
+    updateNotificationPreference('notify_rewards', value);
+  };
+
+  const handleNotifyPointsChange = (value: boolean) => {
+    setNotifyPoints(value);
+    updateNotificationPreference('notify_points', value);
+  };
 
   const handleSaveProfile = async () => {
     if (!user) return;
@@ -218,40 +293,46 @@ const Settings = () => {
             Notificações
           </h2>
           
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">Promoções</p>
-                <p className="text-sm text-muted-foreground">Receber notificações de novas promoções</p>
-              </div>
-              <Switch
-                checked={notifyPromotions}
-                onCheckedChange={setNotifyPromotions}
-              />
+          {loadingPreferences ? (
+            <div className="flex items-center justify-center py-4">
+              <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
             </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">Recompensas</p>
-                <p className="text-sm text-muted-foreground">Avisar quando ganhar recompensas</p>
+          ) : (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Promoções</p>
+                  <p className="text-sm text-muted-foreground">Receber notificações de novas promoções</p>
+                </div>
+                <Switch
+                  checked={notifyPromotions}
+                  onCheckedChange={handleNotifyPromotionsChange}
+                />
               </div>
-              <Switch
-                checked={notifyRewards}
-                onCheckedChange={setNotifyRewards}
-              />
-            </div>
-            
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-medium text-foreground">Pontos</p>
-                <p className="text-sm text-muted-foreground">Notificar ao receber pontos</p>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Recompensas</p>
+                  <p className="text-sm text-muted-foreground">Avisar quando ganhar recompensas</p>
+                </div>
+                <Switch
+                  checked={notifyRewards}
+                  onCheckedChange={handleNotifyRewardsChange}
+                />
               </div>
-              <Switch
-                checked={notifyPoints}
-                onCheckedChange={setNotifyPoints}
-              />
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-foreground">Pontos</p>
+                  <p className="text-sm text-muted-foreground">Notificar ao receber pontos</p>
+                </div>
+                <Switch
+                  checked={notifyPoints}
+                  onCheckedChange={handleNotifyPointsChange}
+                />
+              </div>
             </div>
-          </div>
+          )}
         </Card>
 
         {/* Location Settings */}
