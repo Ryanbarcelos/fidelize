@@ -4,10 +4,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCards } from "@/hooks/useCards";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { useCompanies } from "@/hooks/useCompanies";
+import { supabase } from "@/integrations/supabase/client";
+import { useQuery } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
+import { InactiveClientsAlert } from "@/components/business/InactiveClientsAlert";
 import { 
   Store, 
   Users, 
@@ -32,6 +35,24 @@ const BusinessDashboard = () => {
   const { company, loading: companyLoading } = useCompanies();
   const [isVisible, setIsVisible] = useState(false);
   const [codeCopied, setCodeCopied] = useState(false);
+
+  // Fetch transactions for inactive clients check
+  const { data: transactions = [] } = useQuery({
+    queryKey: ["business-transactions", company?.id],
+    queryFn: async () => {
+      if (!company?.id) return [];
+      
+      const { data, error } = await supabase
+        .from("fidelity_transactions")
+        .select("id, user_id, created_at, type, points")
+        .eq("company_id", company.id)
+        .order("created_at", { ascending: false });
+      
+      if (error) return [];
+      return data || [];
+    },
+    enabled: !!company?.id,
+  });
 
   useEffect(() => {
     if (!authLoading && (!currentUser || currentUser.accountType !== 'business')) {
@@ -266,6 +287,13 @@ const BusinessDashboard = () => {
             })}
           </div>
         </Card>
+
+        {/* Inactive Clients Alert */}
+        <InactiveClientsAlert 
+          clients={clients}
+          transactions={transactions}
+          inactiveDaysThreshold={30}
+        />
 
         {/* Premium Main Actions */}
         <div className="space-y-4 slide-in" style={{ animationDelay: '100ms' }}>
