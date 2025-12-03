@@ -6,10 +6,11 @@ export interface Company {
   id: string;
   name: string;
   shareCode: string;
-  pinSecret: string;
   ownerId: string | null;
   createdAt: string;
   updatedAt: string;
+  // SECURITY: pin_secret is NEVER exposed to the client
+  // PIN validation happens server-side via Edge Function
 }
 
 export function useCompanies() {
@@ -29,9 +30,10 @@ export function useCompanies() {
   const fetchMyCompany = async () => {
     try {
       setLoading(true);
+      // SECURITY: Only fetch non-sensitive columns
       const { data, error } = await supabase
         .from("companies")
-        .select("*")
+        .select("id, name, share_code, owner_id, created_at, updated_at")
         .eq("owner_id", user!.id)
         .maybeSingle();
 
@@ -42,7 +44,6 @@ export function useCompanies() {
           id: data.id,
           name: data.name,
           shareCode: data.share_code,
-          pinSecret: data.pin_secret,
           ownerId: data.owner_id,
           createdAt: data.created_at,
           updatedAt: data.updated_at,
@@ -57,10 +58,9 @@ export function useCompanies() {
 
   const findCompanyByShareCode = async (shareCode: string): Promise<Company | null> => {
     try {
+      // SECURITY: Use RPC function that excludes pin_secret
       const { data, error } = await supabase
-        .from("companies")
-        .select("*")
-        .eq("share_code", shareCode.toUpperCase())
+        .rpc('find_company_by_share_code', { p_share_code: shareCode })
         .maybeSingle();
 
       if (error) throw error;
@@ -70,7 +70,6 @@ export function useCompanies() {
           id: data.id,
           name: data.name,
           shareCode: data.share_code,
-          pinSecret: data.pin_secret,
           ownerId: data.owner_id,
           createdAt: data.created_at,
           updatedAt: data.updated_at,
@@ -83,17 +82,22 @@ export function useCompanies() {
     }
   };
 
+  /**
+   * SECURITY: PIN validation now happens server-side via Edge Function
+   * The PIN is never exposed to or stored on the client
+   */
   const validateCompanyPin = async (companyId: string, pin: string): Promise<boolean> => {
     try {
-      const { data, error } = await supabase
-        .from("companies")
-        .select("pin_secret")
-        .eq("id", companyId)
-        .single();
+      const { data, error } = await supabase.functions.invoke('validate-pin', {
+        body: { companyId, pin }
+      });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Error validating PIN:", error);
+        return false;
+      }
 
-      return data?.pin_secret === pin;
+      return data?.valid === true;
     } catch (error) {
       console.error("Error validating PIN:", error);
       return false;
@@ -112,7 +116,7 @@ export function useCompanies() {
           pin_secret: pinSecret,
           owner_id: user.id,
         })
-        .select()
+        .select("id, name, share_code, owner_id, created_at, updated_at")
         .single();
 
       if (error) throw error;
