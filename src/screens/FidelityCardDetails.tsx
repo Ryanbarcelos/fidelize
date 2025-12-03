@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { useCompanies } from "@/hooks/useCompanies";
+import { useFidelityTransactions } from "@/hooks/useFidelityTransactions";
 import { ProgressBar } from "@/components/gamification/ProgressBar";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -25,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ArrowLeft, Edit, Trash2, Gift, Plus, Upload, Camera } from "lucide-react";
+import { ArrowLeft, Edit, Trash2, Gift, Plus, Upload, Camera, History } from "lucide-react";
 import { toast } from "sonner";
 import confetti from "canvas-confetti";
 import { AnimatedCounter } from "@/components/gamification/AnimatedCounter";
@@ -36,6 +37,7 @@ const FidelityCardDetails = () => {
   const { id } = useParams();
   const { cards, updateCardBalance, deleteCard, updateCardLogo } = useFidelityCards();
   const { validateCompanyPin } = useCompanies();
+  const { addTransaction } = useFidelityTransactions(id);
   
   const [showAddPointsDialog, setShowAddPointsDialog] = useState(false);
   const [showEditLogoDialog, setShowEditLogoDialog] = useState(false);
@@ -118,9 +120,20 @@ const FidelityCardDetails = () => {
       return;
     }
     
-    const result = await updateCardBalance(card.id, card.balance - 10);
+    const newBalance = card.balance - 10;
+    const result = await updateCardBalance(card.id, newBalance);
     if (result?.success) {
-      setAnimatedPoints(card.balance - 10);
+      // Record transaction
+      await addTransaction(
+        card.id,
+        card.companyId,
+        "reward_collected",
+        10,
+        newBalance,
+        "customer"
+      );
+      
+      setAnimatedPoints(newBalance);
       setCelebrationDialog({ open: true, type: "reward" });
       triggerConfetti();
       toast.success("Recompensa coletada com sucesso! 🎉");
@@ -151,6 +164,16 @@ const FidelityCardDetails = () => {
       const result = await updateCardBalance(card.id, newBalance);
       
       if (result?.success) {
+        // Record transaction
+        await addTransaction(
+          card.id,
+          card.companyId,
+          "points_added",
+          1,
+          newBalance,
+          "customer"
+        );
+        
         setAnimatedPoints(newBalance);
         toast.success("1 ponto adicionado com sucesso!");
         setShowAddPointsDialog(false);
@@ -351,6 +374,17 @@ const FidelityCardDetails = () => {
           >
             <Upload className="w-5 h-5 mr-2" />
             {card.logo ? "Alterar Foto" : "Adicionar Foto"}
+          </Button>
+          
+          {/* Transaction History Button */}
+          <Button 
+            onClick={() => navigate(`/fidelity-card/${id}/history`)}
+            variant="outline"
+            className="w-full h-14 text-lg rounded-2xl shadow-md hover:shadow-lg" 
+            size="lg"
+          >
+            <History className="w-5 h-5 mr-2" />
+            Ver Histórico de Transações
           </Button>
         </div>
 

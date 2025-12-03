@@ -4,6 +4,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCards } from "@/hooks/useCards";
 import { useFidelityCards, FidelityClient } from "@/hooks/useFidelityCards";
 import { useCompanies } from "@/hooks/useCompanies";
+import { useFidelityTransactions } from "@/hooks/useFidelityTransactions";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -25,6 +26,7 @@ const StoreClients = () => {
   const { cards, loading: cardsLoading } = useCards();
   const { clients, loading: clientsLoading, updateCardBalance, refetchClients } = useFidelityCards();
   const { company, validateCompanyPin } = useCompanies();
+  const { addTransaction } = useFidelityTransactions();
   const [searchQuery, setSearchQuery] = useState("");
   
   // Dialog state for adding points
@@ -126,6 +128,16 @@ const StoreClients = () => {
       const result = await updateCardBalance(selectedClient.id, newBalance);
       
       if (result?.success) {
+        // Record transaction
+        await addTransaction(
+          selectedClient.id,
+          company.id,
+          pointsAction === "add" ? "points_added" : "points_removed",
+          amount,
+          newBalance,
+          "business"
+        );
+        
         await refetchClients();
         toast.success(
           pointsAction === "add" 
