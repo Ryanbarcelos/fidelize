@@ -1,5 +1,4 @@
 import { useAuth } from "@/hooks/useAuth";
-import { useLocation } from "@/hooks/useLocation";
 import { useGamification } from "@/hooks/useGamification";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { Button } from "@/components/ui/button";
@@ -7,13 +6,12 @@ import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MedalDisplay } from "@/components/gamification/MedalDisplay";
-import { LogOut, MapPin, Store, Trophy, MapPinned, Zap, CreditCard, Star } from "lucide-react";
+import { LogOut, Store, Trophy, MapPinned, Zap, CreditCard, Star, Settings } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 const Profile = () => {
   const { currentUser, logout } = useAuth();
-  const { permissionGranted, requestLocationPermission } = useLocation();
   const { level, totalRewards, xpProgress, medals, unlockedMedals, nextMedal } = useGamification();
   const { cards: fidelityCards } = useFidelityCards();
   const navigate = useNavigate();
@@ -32,8 +30,16 @@ const Profile = () => {
     <div className="min-h-screen bg-background pb-20">
       {/* Premium Header */}
       <header className="bg-card/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-10 shadow-premium">
-        <div className="container mx-auto px-4 py-5">
+        <div className="container mx-auto px-4 py-5 flex items-center justify-between">
           <h1 className="text-2xl font-bold text-foreground tracking-tight">Meu Perfil</h1>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => navigate("/settings")}
+            className="rounded-xl"
+          >
+            <Settings className="w-5 h-5" />
+          </Button>
         </div>
       </header>
 
@@ -181,42 +187,18 @@ const Profile = () => {
           </Card>
         )}
 
-        {/* Premium Location Settings */}
-        <Card className="p-6 mb-6 border-0 shadow-premium rounded-3xl slide-in" style={{ animationDelay: '200ms' }}>
-          <h3 className="font-bold text-foreground mb-4 text-lg flex items-center gap-2">
-            <MapPin className="w-5 h-5 text-primary" />
-            Localização
-          </h3>
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold text-foreground">Acesso à Localização</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  {permissionGranted 
-                    ? "Ativado - você pode ver lojas próximas" 
-                    : "Desativado - ative para ver lojas próximas"
-                  }
-                </p>
-              </div>
-              <div className={`w-4 h-4 rounded-full ${permissionGranted ? "bg-success shadow-glow" : "bg-muted"} transition-all`} />
-            </div>
-            {!permissionGranted && (
-              <Button 
-                onClick={requestLocationPermission}
-                variant="outline"
-                className="w-full h-12 rounded-2xl hover-scale"
-              >
-                <MapPin className="w-4 h-4 mr-2" />
-                Permitir Localização
-              </Button>
-            )}
-          </div>
-        </Card>
-
         {/* Premium Quick Actions */}
-        <Card className="p-6 mb-6 border-0 shadow-premium rounded-3xl slide-in" style={{ animationDelay: '250ms' }}>
+        <Card className="p-6 mb-6 border-0 shadow-premium rounded-3xl slide-in" style={{ animationDelay: '200ms' }}>
           <h3 className="font-bold text-foreground mb-5 text-lg">Ações Rápidas</h3>
           <div className="space-y-3">
+            <Button
+              variant="outline"
+              className="w-full h-12 rounded-2xl justify-start hover-scale"
+              onClick={() => navigate("/settings")}
+            >
+              <Settings className="w-4 h-4 mr-2" />
+              Configurações
+            </Button>
             <Button
               variant="outline"
               className="w-full h-12 rounded-2xl justify-start hover-scale"
