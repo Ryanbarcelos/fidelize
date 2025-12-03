@@ -112,8 +112,11 @@ const StoreClients = () => {
   // Filter fidelity clients by search
   const filteredClients = useMemo(() => {
     if (!searchQuery) return clients;
+    const query = searchQuery.toLowerCase();
     return clients.filter(c => 
-      c.id.toLowerCase().includes(searchQuery.toLowerCase())
+      c.id.toLowerCase().includes(query) ||
+      (c.userName && c.userName.toLowerCase().includes(query)) ||
+      (c.userEmail && c.userEmail.toLowerCase().includes(query))
     );
   }, [clients, searchQuery]);
 
@@ -313,8 +316,15 @@ const StoreClients = () => {
                           <User className="w-6 h-6 text-white" />
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-foreground">Cliente #{client.id.slice(0, 8)}</p>
-                          <p className="text-sm text-muted-foreground mb-2">
+                          <p className="font-semibold text-foreground">
+                            {client.userName || `Cliente #${client.id.slice(0, 8)}`}
+                          </p>
+                          {client.userEmail && (
+                            <p className="text-sm text-muted-foreground truncate">
+                              {client.userEmail}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground mb-2">
                             Desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}
                           </p>
                           
@@ -504,7 +514,9 @@ const StoreClients = () => {
             <DialogDescription>
               {selectedClient && (
                 <span>
-                  Cliente #{selectedClient.id.slice(0, 8)} • Saldo atual: {selectedClient.balance} pontos
+                  {selectedClient.userName || `Cliente #${selectedClient.id.slice(0, 8)}`}
+                  {selectedClient.userEmail && ` (${selectedClient.userEmail})`}
+                  {" "}• Saldo atual: {selectedClient.balance} pontos
                 </span>
               )}
             </DialogDescription>
