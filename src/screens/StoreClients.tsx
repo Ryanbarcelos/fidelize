@@ -2,19 +2,39 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCards } from "@/hooks/useCards";
-import { useFidelityCards } from "@/hooks/useFidelityCards";
+import { useFidelityCards, FidelityClient } from "@/hooks/useFidelityCards";
+import { useCompanies } from "@/hooks/useCompanies";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, User, TrendingUp, Gift, Users } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ArrowLeft, Search, User, TrendingUp, Gift, Users, Plus, Minus } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
+import { toast } from "sonner";
 
 const StoreClients = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
   const { cards, loading: cardsLoading } = useCards();
-  const { clients, loading: clientsLoading } = useFidelityCards();
+  const { clients, loading: clientsLoading, updateCardBalance, refetchClients } = useFidelityCards();
+  const { company, validateCompanyPin } = useCompanies();
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Dialog state for adding points
+  const [selectedClient, setSelectedClient] = useState<FidelityClient | null>(null);
+  const [showAddPointsDialog, setShowAddPointsDialog] = useState(false);
+  const [pointsAction, setPointsAction] = useState<"add" | "remove">("add");
+  const [pointsAmount, setPointsAmount] = useState("1");
+  const [pin, setPin] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [isValidating, setIsValidating] = useState(false);
 
   // Get legacy cards from loyalty_cards table
   const storeCards = useMemo(() => {
@@ -32,6 +52,14 @@ const StoreClients = () => {
     
     return filtered;
   }, [cards, currentUser, searchQuery]);
+
+  // Filter fidelity clients by search
+  const filteredClients = useMemo(() => {
+    if (!searchQuery) return clients;
+    return clients.filter(c => 
+      c.id.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [clients, searchQuery]);
 
   // Total clients from new fidelity_cards table
   const totalFidelityClients = clients.length;
@@ -54,6 +82,65 @@ const StoreClients = () => {
     if (diffDays < 7) return `${diffDays} dias atrás`;
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} semanas atrás`;
     return `${Math.floor(diffDays / 30)} meses atrás`;
+  };
+
+  const openAddPointsDialog = (client: FidelityClient, action: "add" | "remove") => {
+    setSelectedClient(client);
+    setPointsAction(action);
+    setPointsAmount("1");
+    setPin("");
+    setPinError("");
+    setShowAddPointsDialog(true);
+  };
+
+  const handlePointsSubmit = async () => {
+    if (pin.length !== 4) {
+      setPinError("Digite um PIN de 4 dígitos");
+      return;
+    }
+
+    if (!selectedClient || !company) return;
+
+    const amount = parseInt(pointsAmount) || 1;
+    if (amount < 1) {
+      setPinError("Quantidade inválida");
+      return;
+    }
+
+    setIsValidating(true);
+    setPinError("");
+
+    try {
+      const isValid = await validateCompanyPin(company.id, pin);
+      
+      if (!isValid) {
+        setPinError("PIN incorreto. Tente novamente.");
+        setIsValidating(false);
+        return;
+      }
+
+      const newBalance = pointsAction === "add" 
+        ? selectedClient.balance + amount 
+        : Math.max(0, selectedClient.balance - amount);
+
+      const result = await updateCardBalance(selectedClient.id, newBalance);
+      
+      if (result?.success) {
+        await refetchClients();
+        toast.success(
+          pointsAction === "add" 
+            ? `${amount} ponto(s) adicionado(s) com sucesso!` 
+            : `${amount} ponto(s) removido(s) com sucesso!`
+        );
+        setShowAddPointsDialog(false);
+      } else {
+        toast.error(result?.error || "Erro ao atualizar pontos");
+      }
+    } catch (error) {
+      setPinError("Erro ao validar PIN");
+    } finally {
+      setIsValidating(false);
+    }
   };
 
   const loading = cardsLoading || clientsLoading;
@@ -90,7 +177,7 @@ const StoreClients = () => {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Buscar por nome..."
+              placeholder="Buscar por nome ou ID..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-12 rounded-2xl"
@@ -119,33 +206,78 @@ const StoreClients = () => {
         </div>
 
         {/* Fidelity Cards Clients */}
-        {clients.length > 0 && (
+        {filteredClients.length > 0 && (
           <div className="mb-6">
             <h3 className="font-bold text-foreground mb-3">Clientes do Novo Sistema</h3>
             <div className="space-y-3">
-              {clients.map((client, index) => (
-                <Card 
-                  key={client.id}
-                  className="p-4 border-0 shadow-md rounded-2xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900"
-                  style={{ animationDelay: `${index * 50}ms` }}
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
-                      <User className="w-6 h-6 text-white" />
+              {filteredClients.map((client, index) => {
+                const progress = (client.balance / 10) * 100;
+                
+                return (
+                  <Card 
+                    key={client.id}
+                    className="p-4 border-0 shadow-md rounded-2xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div className="flex items-start gap-4">
+                      <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center flex-shrink-0">
+                        <User className="w-6 h-6 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-foreground">Cliente #{client.id.slice(0, 8)}</p>
+                        <p className="text-sm text-muted-foreground mb-2">
+                          Desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}
+                        </p>
+                        
+                        {/* Points Progress */}
+                        <div className="mb-3">
+                          <div className="flex justify-between items-center mb-1">
+                            <span className="text-sm text-muted-foreground">Progresso</span>
+                            <span className="text-sm font-medium text-foreground">
+                              {client.balance}/10 pontos
+                            </span>
+                          </div>
+                          <Progress value={Math.min(progress, 100)} className="h-2" />
+                        </div>
+                        
+                        {/* Status Badge */}
+                        {client.balance >= 10 && (
+                          <div className="inline-flex items-center gap-1 bg-success/10 text-success px-2 py-1 rounded-lg text-xs font-medium mb-2">
+                            <Gift className="w-3 h-3" />
+                            Recompensa disponível
+                          </div>
+                        )}
+                        
+                        {/* Action Buttons */}
+                        <div className="flex gap-2 mt-2">
+                          <Button
+                            size="sm"
+                            onClick={() => openAddPointsDialog(client, "add")}
+                            className="flex-1 h-9 rounded-xl"
+                          >
+                            <Plus className="w-4 h-4 mr-1" />
+                            Adicionar
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openAddPointsDialog(client, "remove")}
+                            className="flex-1 h-9 rounded-xl"
+                            disabled={client.balance === 0}
+                          >
+                            <Minus className="w-4 h-4 mr-1" />
+                            Remover
+                          </Button>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-green-600">{client.balance}</p>
+                        <p className="text-xs text-muted-foreground">pontos</p>
+                      </div>
                     </div>
-                    <div className="flex-1">
-                      <p className="font-semibold text-foreground">Cliente #{client.id.slice(0, 8)}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <p className="text-2xl font-bold text-green-600">{client.balance}</p>
-                      <p className="text-xs text-muted-foreground">pontos</p>
-                    </div>
-                  </div>
-                </Card>
-              ))}
+                  </Card>
+                );
+              })}
             </div>
           </div>
         )}
@@ -234,6 +366,82 @@ const StoreClients = () => {
           </div>
         )}
       </main>
+
+      {/* Add/Remove Points Dialog */}
+      <Dialog open={showAddPointsDialog} onOpenChange={(open) => {
+        setShowAddPointsDialog(open);
+        if (!open) {
+          setPin("");
+          setPinError("");
+          setSelectedClient(null);
+        }
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {pointsAction === "add" ? "Adicionar Pontos" : "Remover Pontos"}
+            </DialogTitle>
+            <DialogDescription>
+              {selectedClient && (
+                <span>
+                  Cliente #{selectedClient.id.slice(0, 8)} • Saldo atual: {selectedClient.balance} pontos
+                </span>
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            {/* Points Amount */}
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Quantidade de pontos
+              </label>
+              <Input
+                type="number"
+                min="1"
+                max={pointsAction === "remove" ? selectedClient?.balance : 100}
+                value={pointsAmount}
+                onChange={(e) => setPointsAmount(e.target.value)}
+                className="h-12 text-center text-xl font-bold"
+              />
+            </div>
+            
+            {/* PIN Input */}
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                PIN da Loja (4 dígitos)
+              </label>
+              <Input
+                type="password"
+                inputMode="numeric"
+                maxLength={4}
+                value={pin}
+                onChange={(e) => {
+                  setPin(e.target.value.replace(/\D/g, ""));
+                  setPinError("");
+                }}
+                placeholder="0000"
+                className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
+              />
+            </div>
+            
+            {pinError && (
+              <p className="text-sm text-destructive text-center">{pinError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddPointsDialog(false)}>
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handlePointsSubmit} 
+              disabled={isValidating || pin.length !== 4}
+              className={pointsAction === "remove" ? "bg-destructive hover:bg-destructive/90" : ""}
+            >
+              {isValidating ? "Validando..." : pointsAction === "add" ? "Adicionar" : "Remover"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
