@@ -150,8 +150,10 @@ export type Database = {
           fidelity_card_id: string
           id: string
           is_redeemed: boolean
+          pending_redemption: boolean | null
           promotion_id: string
           redeemed_at: string | null
+          redemption_code: string | null
           user_id: string
         }
         Insert: {
@@ -159,8 +161,10 @@ export type Database = {
           fidelity_card_id: string
           id?: string
           is_redeemed?: boolean
+          pending_redemption?: boolean | null
           promotion_id: string
           redeemed_at?: string | null
+          redemption_code?: string | null
           user_id: string
         }
         Update: {
@@ -168,8 +172,10 @@ export type Database = {
           fidelity_card_id?: string
           id?: string
           is_redeemed?: boolean
+          pending_redemption?: boolean | null
           promotion_id?: string
           redeemed_at?: string | null
+          redemption_code?: string | null
           user_id?: string
         }
         Relationships: [

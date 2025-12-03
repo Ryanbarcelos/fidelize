@@ -23,6 +23,8 @@ export interface EarnedPromotion {
   earnedAt: string;
   redeemedAt?: string;
   isRedeemed: boolean;
+  redemptionCode?: string;
+  pendingRedemption?: boolean;
   promotion?: AutomaticPromotion;
 }
 
@@ -258,6 +260,8 @@ export function useAutomaticPromotions() {
         earnedAt: e.earned_at,
         redeemedAt: e.redeemed_at,
         isRedeemed: e.is_redeemed,
+        redemptionCode: e.redemption_code,
+        pendingRedemption: e.pending_redemption,
         promotion: e.automatic_promotions ? {
           id: e.automatic_promotions.id,
           companyId: e.automatic_promotions.company_id,
@@ -295,6 +299,25 @@ export function useAutomaticPromotions() {
     }
   };
 
+  const requestRedemption = async (earnedPromotionId: string, redemptionCode: string): Promise<{ success: boolean; error?: string }> => {
+    try {
+      const { error } = await supabase
+        .from("earned_promotions")
+        .update({
+          redemption_code: redemptionCode,
+          pending_redemption: true,
+        })
+        .eq("id", earnedPromotionId);
+
+      if (error) throw error;
+
+      return { success: true };
+    } catch (error: any) {
+      console.error("Error requesting redemption:", error);
+      return { success: false, error: error.message };
+    }
+  };
+
   return {
     promotions,
     earnedPromotions,
@@ -305,6 +328,7 @@ export function useAutomaticPromotions() {
     checkAndAwardPromotions,
     fetchEarnedPromotions,
     redeemPromotion,
+    requestRedemption,
     refetch: fetchPromotions,
   };
 }

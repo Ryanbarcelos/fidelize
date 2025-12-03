@@ -12,6 +12,7 @@ import FidelityTransactionHistory from "./screens/FidelityTransactionHistory";
 import BusinessReports from "./screens/BusinessReports";
 import AutomaticPromotions from "./screens/AutomaticPromotions";
 import EarnedPromotions from "./screens/EarnedPromotions";
+import ValidateRedemption from "./screens/ValidateRedemption";
 import TransactionHistory from "./screens/TransactionHistory";
 import Achievements from "./screens/Achievements";
 import NearbyStores from "./screens/NearbyStores";
@@ -65,6 +66,7 @@ const App = () => (
           <Route path="/business-dashboard" element={<ProtectedRoute><BusinessDashboard /></ProtectedRoute>} />
           <Route path="/business-reports" element={<ProtectedRoute><BusinessReports /></ProtectedRoute>} />
           <Route path="/automatic-promotions" element={<ProtectedRoute><AutomaticPromotions /></ProtectedRoute>} />
+          <Route path="/validate-redemption" element={<ProtectedRoute><ValidateRedemption /></ProtectedRoute>} />
           <Route path="/store-panel" element={<ProtectedRoute><StorePanel /></ProtectedRoute>} />
           <Route path="/store-clients" element={<ProtectedRoute><StoreClients /></ProtectedRoute>} />
           <Route path="/store-promotions" element={<ProtectedRoute><StorePromotions /></ProtectedRoute>} />
