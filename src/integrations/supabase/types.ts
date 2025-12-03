@@ -67,6 +67,53 @@ export type Database = {
           },
         ]
       }
+      automatic_promotions: {
+        Row: {
+          company_id: string
+          created_at: string | null
+          description: string | null
+          id: string
+          is_active: boolean
+          points_threshold: number
+          reward_type: string
+          reward_value: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_id: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          points_threshold: number
+          reward_type?: string
+          reward_value: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_id?: string
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          points_threshold?: number
+          reward_type?: string
+          reward_value?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automatic_promotions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       companies: {
         Row: {
           created_at: string | null
@@ -96,6 +143,51 @@ export type Database = {
           updated_at?: string | null
         }
         Relationships: []
+      }
+      earned_promotions: {
+        Row: {
+          earned_at: string | null
+          fidelity_card_id: string
+          id: string
+          is_redeemed: boolean
+          promotion_id: string
+          redeemed_at: string | null
+          user_id: string
+        }
+        Insert: {
+          earned_at?: string | null
+          fidelity_card_id: string
+          id?: string
+          is_redeemed?: boolean
+          promotion_id: string
+          redeemed_at?: string | null
+          user_id: string
+        }
+        Update: {
+          earned_at?: string | null
+          fidelity_card_id?: string
+          id?: string
+          is_redeemed?: boolean
+          promotion_id?: string
+          redeemed_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "earned_promotions_fidelity_card_id_fkey"
+            columns: ["fidelity_card_id"]
+            isOneToOne: false
+            referencedRelation: "fidelity_cards"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "earned_promotions_promotion_id_fkey"
+            columns: ["promotion_id"]
+            isOneToOne: false
+            referencedRelation: "automatic_promotions"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       fidelity_cards: {
         Row: {
