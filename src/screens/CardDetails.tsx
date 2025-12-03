@@ -30,7 +30,7 @@ const CardDetails = () => {
   const navigate = useNavigate();
   const { id } = useParams();
   const { cards, updateCard, deleteCard, addTransaction } = useCards();
-  const { updateAchievements, incrementRewardsCollected } = useAchievements();
+  const { incrementRewardsCollected } = useAchievements();
   const { addReward } = useGamification();
   const { logAction, getLocation } = useAuditLog();
   

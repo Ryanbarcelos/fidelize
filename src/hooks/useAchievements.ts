@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "./useAuth";
-import { useCards } from "./useCards";
+import { useFidelityCards } from "./useFidelityCards";
 import { AchievementData, ACHIEVEMENTS, UserProgress } from "@/types/achievement";
 import confetti from "canvas-confetti";
 import { toast } from "sonner";
@@ -19,7 +19,7 @@ const INITIAL_ACHIEVEMENT_DATA: AchievementData = {
 
 export const useAchievements = () => {
   const { user } = useAuth();
-  const { cards } = useCards();
+  const { cards: fidelityCards } = useFidelityCards();
   const [achievementData, setAchievementData] = useState<AchievementData>(INITIAL_ACHIEVEMENT_DATA);
   const [loading, setLoading] = useState(true);
   const [newlyUnlocked, setNewlyUnlocked] = useState<string[]>([]);
@@ -103,7 +103,7 @@ export const useAchievements = () => {
 
   // Check and update streak
   useEffect(() => {
-    if (!user) return;
+    if (!user || loading) return;
 
     const checkStreak = async () => {
       const today = new Date().toISOString().split('T')[0];
@@ -132,6 +132,9 @@ export const useAchievements = () => {
             lastAccessDate: today,
             currentStreak: newStreak,
           }));
+
+          // Also update the streak achievement
+          await updateAchievementProgress("dedicated_user", newStreak);
         } catch (error) {
           console.error("Error updating streak:", error);
         }
@@ -139,7 +142,7 @@ export const useAchievements = () => {
     };
 
     checkStreak();
-  }, [user, achievementData.lastAccessDate, achievementData.currentStreak]);
+  }, [user, loading]);
 
   const triggerCelebration = () => {
     confetti({
@@ -149,7 +152,7 @@ export const useAchievements = () => {
     });
   };
 
-  const checkAchievement = useCallback(async (achievementId: string, currentValue: number) => {
+  const updateAchievementProgress = useCallback(async (achievementId: string, currentValue: number) => {
     if (!user) return;
 
     const achievement = ACHIEVEMENTS.find((a) => a.id === achievementId);
@@ -163,90 +166,80 @@ export const useAchievements = () => {
 
     const currentProgress = achievementData.progress[progressIndex];
 
-    if (!currentProgress.completed && currentValue >= achievement.target) {
-      try {
-        await supabase
-          .from("user_achievements")
-          .update({
-            current: currentValue,
-            completed: true,
-            completed_at: new Date().toISOString(),
-          })
-          .eq("user_id", user.id)
-          .eq("achievement_id", achievementId);
+    // Already completed, no need to update
+    if (currentProgress.completed) return;
 
-        const updatedProgress = [...achievementData.progress];
-        updatedProgress[progressIndex] = {
-          ...currentProgress,
+    const isCompleted = currentValue >= achievement.target;
+
+    try {
+      await supabase
+        .from("user_achievements")
+        .update({
           current: currentValue,
-          completed: true,
-          completedAt: new Date().toISOString(),
-        };
+          completed: isCompleted,
+          completed_at: isCompleted ? new Date().toISOString() : null,
+        })
+        .eq("user_id", user.id)
+        .eq("achievement_id", achievementId);
 
-        setAchievementData((prev) => ({
-          ...prev,
-          progress: updatedProgress,
-        }));
+      const updatedProgress = [...achievementData.progress];
+      updatedProgress[progressIndex] = {
+        ...currentProgress,
+        current: currentValue,
+        completed: isCompleted,
+        completedAt: isCompleted ? new Date().toISOString() : undefined,
+      };
 
+      setAchievementData((prev) => ({
+        ...prev,
+        progress: updatedProgress,
+      }));
+
+      if (isCompleted && !currentProgress.completed) {
         triggerCelebration();
         setNewlyUnlocked((prev) => [...prev, achievementId]);
-
         toast.success(`🎉 Conquista desbloqueada: ${achievement.title}!`, {
           description: achievement.description,
           duration: 5000,
         });
-      } catch (error) {
-        console.error("Error updating achievement:", error);
       }
-    } else if (!currentProgress.completed && currentProgress.current !== currentValue) {
-      try {
-        await supabase
-          .from("user_achievements")
-          .update({ current: currentValue })
-          .eq("user_id", user.id)
-          .eq("achievement_id", achievementId);
-
-        const updatedProgress = [...achievementData.progress];
-        updatedProgress[progressIndex] = {
-          ...currentProgress,
-          current: currentValue,
-        };
-
-        setAchievementData((prev) => ({
-          ...prev,
-          progress: updatedProgress,
-        }));
-      } catch (error) {
-        console.error("Error updating achievement progress:", error);
-      }
+    } catch (error) {
+      console.error("Error updating achievement:", error);
     }
   }, [user, achievementData.progress]);
 
-  const updateAchievements = useCallback(() => {
-    // Count total cards
-    const totalCards = cards.length;
-    checkAchievement("collector_beginner", totalCards);
+  // Auto-update achievements based on fidelity cards
+  useEffect(() => {
+    if (!user || loading || fidelityCards.length === 0) return;
 
-    // Count total points across all cards
-    const totalPoints = cards.reduce((sum, card) => sum + card.points, 0);
-    checkAchievement("loyal_customer", totalPoints);
+    const updateAllAchievements = async () => {
+      // Count total fidelity cards
+      const totalCards = fidelityCards.length;
+      await updateAchievementProgress("collector_beginner", totalCards);
 
-    // Check streak
-    checkAchievement("dedicated_user", achievementData.currentStreak);
-  }, [cards, achievementData.currentStreak, checkAchievement]);
+      // Sum total balance (points) across all fidelity cards
+      const totalPoints = fidelityCards.reduce((sum, card) => sum + (card.balance || 0), 0);
+      await updateAchievementProgress("loyal_customer", totalPoints);
+
+      // Check streak
+      await updateAchievementProgress("dedicated_user", achievementData.currentStreak);
+    };
+
+    updateAllAchievements();
+  }, [user, loading, fidelityCards, achievementData.currentStreak]);
 
   const incrementRewardsCollected = useCallback(async () => {
     if (!user) return;
 
     const rewardsProgress = achievementData.progress.find(
-      (p) => p.achievementId === "rewards_hunter"
+      (p) => p.achievementId === "reward_champion"
     );
 
-    if (rewardsProgress) {
+    if (rewardsProgress && !rewardsProgress.completed) {
       const newCount = rewardsProgress.current + 1;
-      await checkAchievement("rewards_hunter", newCount);
+      await updateAchievementProgress("reward_champion", newCount);
     }
-  }, [user, achievementData.progress, checkAchievement]);
+  }, [user, achievementData.progress, updateAchievementProgress]);
 
   const clearNewlyUnlocked = () => {
     setNewlyUnlocked([]);
@@ -263,7 +256,6 @@ export const useAchievements = () => {
   return {
     achievements: ACHIEVEMENTS,
     progress: achievementData.progress,
-    updateAchievements,
     incrementRewardsCollected,
     newlyUnlocked,
     clearNewlyUnlocked,
