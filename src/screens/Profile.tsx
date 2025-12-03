@@ -1,12 +1,13 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "@/hooks/useLocation";
 import { useGamification } from "@/hooks/useGamification";
+import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MedalDisplay } from "@/components/gamification/MedalDisplay";
-import { LogOut, MapPin, Store, Trophy, MapPinned, Zap } from "lucide-react";
+import { LogOut, MapPin, Store, Trophy, MapPinned, Zap, CreditCard, Star } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
@@ -14,7 +15,12 @@ const Profile = () => {
   const { currentUser, logout } = useAuth();
   const { permissionGranted, requestLocationPermission } = useLocation();
   const { level, totalRewards, xpProgress, medals, unlockedMedals, nextMedal } = useGamification();
+  const { cards: fidelityCards } = useFidelityCards();
   const navigate = useNavigate();
+
+  // Calculate total points across all fidelity cards
+  const totalPoints = fidelityCards.reduce((sum, card) => sum + (card.balance || 0), 0);
+  const totalCards = fidelityCards.length;
 
   const handleLogout = async () => {
     await logout();
@@ -82,13 +88,33 @@ const Profile = () => {
             Estatísticas
           </h3>
           <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gradient-to-br from-primary/10 to-primary-light/10 rounded-3xl p-6 border border-primary/20 shadow-premium hover-scale">
-              <p className="text-sm font-medium text-muted-foreground mb-2">Nível Atual</p>
-              <p className="text-4xl font-bold text-foreground tracking-tight">{level}</p>
+            <div className="bg-gradient-to-br from-primary/10 to-primary-light/10 rounded-3xl p-5 border border-primary/20 shadow-premium hover-scale">
+              <div className="flex items-center gap-2 mb-2">
+                <Zap className="w-4 h-4 text-primary" />
+                <p className="text-sm font-medium text-muted-foreground">Nível</p>
+              </div>
+              <p className="text-3xl font-bold text-foreground tracking-tight">{level}</p>
             </div>
-            <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-3xl p-6 border border-success/20 shadow-premium hover-scale">
-              <p className="text-sm font-medium text-muted-foreground mb-2">Recompensas</p>
-              <p className="text-4xl font-bold text-foreground tracking-tight">{totalRewards}</p>
+            <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-3xl p-5 border border-success/20 shadow-premium hover-scale">
+              <div className="flex items-center gap-2 mb-2">
+                <Trophy className="w-4 h-4 text-success" />
+                <p className="text-sm font-medium text-muted-foreground">Recompensas</p>
+              </div>
+              <p className="text-3xl font-bold text-foreground tracking-tight">{totalRewards}</p>
+            </div>
+            <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-400/5 rounded-3xl p-5 border border-yellow-500/20 shadow-premium hover-scale">
+              <div className="flex items-center gap-2 mb-2">
+                <Star className="w-4 h-4 text-yellow-500" />
+                <p className="text-sm font-medium text-muted-foreground">Pontos Totais</p>
+              </div>
+              <p className="text-3xl font-bold text-foreground tracking-tight">{totalPoints}</p>
+            </div>
+            <div className="bg-gradient-to-br from-blue-500/10 to-blue-400/5 rounded-3xl p-5 border border-blue-500/20 shadow-premium hover-scale">
+              <div className="flex items-center gap-2 mb-2">
+                <CreditCard className="w-4 h-4 text-blue-500" />
+                <p className="text-sm font-medium text-muted-foreground">Cartões</p>
+              </div>
+              <p className="text-3xl font-bold text-foreground tracking-tight">{totalCards}</p>
             </div>
           </div>
         </Card>
