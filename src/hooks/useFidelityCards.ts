@@ -114,11 +114,31 @@ export function useFidelityCards() {
 
       if (error) throw error;
 
+      // Get user profiles for all card holders
+      const userIds = (data || []).map((card: any) => card.user_id);
+      let profilesMap: Record<string, { name: string; email: string }> = {};
+      
+      if (userIds.length > 0) {
+        const { data: profilesData } = await supabase
+          .from("profiles")
+          .select("user_id, name, email")
+          .in("user_id", userIds);
+        
+        if (profilesData) {
+          profilesMap = profilesData.reduce((acc: any, profile: any) => {
+            acc[profile.user_id] = { name: profile.name, email: profile.email };
+            return acc;
+          }, {});
+        }
+      }
+
       const transformedClients: FidelityClient[] = (data || []).map((card: any) => ({
         id: card.id,
         balance: card.balance,
         createdAt: card.created_at,
         userId: card.user_id,
+        userName: profilesMap[card.user_id]?.name,
+        userEmail: profilesMap[card.user_id]?.email,
       }));
 
       setClients(transformedClients);
