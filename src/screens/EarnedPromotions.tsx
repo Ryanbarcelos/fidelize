@@ -22,8 +22,12 @@ import {
   Clock,
   Sparkles,
   PartyPopper,
+  QrCode,
+  Copy,
+  Check,
 } from "lucide-react";
 import { toast } from "sonner";
+import QRCode from "react-qr-code";
 
 const REWARD_ICONS: Record<string, any> = {
   discount: Percent,
@@ -31,15 +35,27 @@ const REWARD_ICONS: Record<string, any> = {
   bonus_points: Star,
 };
 
+// Generate a 6-character alphanumeric code
+const generateRedemptionCode = () => {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+  let code = "";
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
 const EarnedPromotions = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { fetchEarnedPromotions, redeemPromotion } = useAutomaticPromotions();
+  const { fetchEarnedPromotions, requestRedemption } = useAutomaticPromotions();
   const [earnedPromotions, setEarnedPromotions] = useState<EarnedPromotion[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedPromotion, setSelectedPromotion] = useState<EarnedPromotion | null>(null);
   const [showRedeemDialog, setShowRedeemDialog] = useState(false);
   const [isRedeeming, setIsRedeeming] = useState(false);
+  const [redemptionCode, setRedemptionCode] = useState<string | null>(null);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   useEffect(() => {
     loadPromotions();
@@ -54,29 +70,42 @@ const EarnedPromotions = () => {
 
   const openRedeemDialog = (promotion: EarnedPromotion) => {
     setSelectedPromotion(promotion);
+    setRedemptionCode(null);
     setShowRedeemDialog(true);
   };
 
-  const handleRedeem = async () => {
+  const handleRequestRedemption = async () => {
     if (!selectedPromotion) return;
 
     setIsRedeeming(true);
-    const result = await redeemPromotion(selectedPromotion.id);
+    const code = generateRedemptionCode();
+    const result = await requestRedemption(selectedPromotion.id, code);
 
     if (result.success) {
-      toast.success("Promoção resgatada com sucesso! Mostre esta tela para o atendente.", {
+      setRedemptionCode(code);
+      toast.success("Código gerado! Mostre para o lojista validar.", {
         duration: 5000,
       });
-      setShowRedeemDialog(false);
       await loadPromotions();
     } else {
-      toast.error(result.error || "Erro ao resgatar promoção");
+      toast.error(result.error || "Erro ao gerar código de resgate");
     }
 
     setIsRedeeming(false);
   };
 
-  const pendingPromotions = earnedPromotions.filter((p) => !p.isRedeemed);
+  const copyCode = () => {
+    if (redemptionCode) {
+      navigator.clipboard.writeText(redemptionCode);
+      setCodeCopied(true);
+      toast.success("Código copiado!");
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
+  };
+
+  // Split promotions into categories
+  const availablePromotions = earnedPromotions.filter((p) => !p.isRedeemed && !p.pendingRedemption);
+  const pendingPromotions = earnedPromotions.filter((p) => !p.isRedeemed && p.pendingRedemption);
   const redeemedPromotions = earnedPromotions.filter((p) => p.isRedeemed);
 
   if (loading) {
@@ -111,35 +140,42 @@ const EarnedPromotions = () => {
           </div>
 
           {/* Stats */}
-          <div className="grid grid-cols-2 gap-4 mt-6">
-            <Card className="p-4 bg-white/20 backdrop-blur border-0 rounded-2xl">
+          <div className="grid grid-cols-3 gap-3 mt-6">
+            <Card className="p-3 bg-white/20 backdrop-blur border-0 rounded-2xl">
               <div className="flex items-center gap-2 mb-1">
                 <Sparkles className="w-4 h-4 text-amber-200" />
-                <span className="text-sm text-white/80">Disponíveis</span>
+                <span className="text-xs text-white/80">Disponíveis</span>
               </div>
-              <p className="text-3xl font-bold text-white">{pendingPromotions.length}</p>
+              <p className="text-2xl font-bold text-white">{availablePromotions.length}</p>
             </Card>
-            <Card className="p-4 bg-white/20 backdrop-blur border-0 rounded-2xl">
+            <Card className="p-3 bg-white/20 backdrop-blur border-0 rounded-2xl">
+              <div className="flex items-center gap-2 mb-1">
+                <Clock className="w-4 h-4 text-yellow-300" />
+                <span className="text-xs text-white/80">Pendentes</span>
+              </div>
+              <p className="text-2xl font-bold text-white">{pendingPromotions.length}</p>
+            </Card>
+            <Card className="p-3 bg-white/20 backdrop-blur border-0 rounded-2xl">
               <div className="flex items-center gap-2 mb-1">
                 <CheckCircle className="w-4 h-4 text-green-300" />
-                <span className="text-sm text-white/80">Resgatadas</span>
+                <span className="text-xs text-white/80">Resgatadas</span>
               </div>
-              <p className="text-3xl font-bold text-white">{redeemedPromotions.length}</p>
+              <p className="text-2xl font-bold text-white">{redeemedPromotions.length}</p>
             </Card>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 animate-fade-in">
-        {/* Pending Promotions */}
-        {pendingPromotions.length > 0 && (
+        {/* Available Promotions (not yet requested) */}
+        {availablePromotions.length > 0 && (
           <section className="mb-8">
             <h2 className="font-bold text-foreground mb-4 flex items-center gap-2">
               <Gift className="w-5 h-5 text-amber-500" />
               Prontas para Resgatar
             </h2>
             <div className="space-y-4">
-              {pendingPromotions.map((ep, index) => {
+              {availablePromotions.map((ep, index) => {
                 const Icon = REWARD_ICONS[ep.promotion?.rewardType || "discount"] || Gift;
                 return (
                   <Card
@@ -190,8 +226,56 @@ const EarnedPromotions = () => {
           </section>
         )}
 
+        {/* Pending Redemptions (waiting for store validation) */}
+        {pendingPromotions.length > 0 && (
+          <section className="mb-8">
+            <h2 className="font-bold text-foreground mb-4 flex items-center gap-2">
+              <Clock className="w-5 h-5 text-yellow-500" />
+              Aguardando Validação
+            </h2>
+            <div className="space-y-4">
+              {pendingPromotions.map((ep, index) => {
+                const Icon = REWARD_ICONS[ep.promotion?.rewardType || "discount"] || Gift;
+                return (
+                  <Card
+                    key={ep.id}
+                    className="p-4 border-2 border-yellow-400/50 shadow-lg rounded-2xl bg-gradient-to-br from-yellow-50 to-amber-50 dark:from-yellow-950/50 dark:to-amber-950/50 overflow-hidden relative"
+                    style={{ animationDelay: `${index * 50}ms` }}
+                  >
+                    <div className="flex items-start gap-4 relative">
+                      <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-yellow-500 to-amber-500 flex items-center justify-center shadow-lg flex-shrink-0">
+                        <Icon className="w-7 h-7 text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-foreground text-lg mb-1">
+                          {ep.promotion?.title}
+                        </h3>
+                        <p className="text-sm font-semibold text-yellow-700 dark:text-yellow-400 mb-2">
+                          Código: {ep.redemptionCode}
+                        </p>
+                        <div className="flex items-center gap-2 text-sm">
+                          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-yellow-500/20 text-yellow-700 dark:text-yellow-400 font-medium">
+                            <Star className="w-3 h-3" />
+                            {ep.promotion?.rewardValue}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="mt-4 p-3 bg-white dark:bg-black/20 rounded-xl flex items-center justify-center">
+                      <QRCode value={ep.redemptionCode || ""} size={120} />
+                    </div>
+                    <p className="text-xs text-center text-muted-foreground mt-2">
+                      Mostre este QR Code ou o código para o lojista validar
+                    </p>
+                  </Card>
+                );
+              })}
+            </div>
+          </section>
+        )}
+
         {/* Empty State */}
-        {pendingPromotions.length === 0 && redeemedPromotions.length === 0 && (
+        {availablePromotions.length === 0 && pendingPromotions.length === 0 && redeemedPromotions.length === 0 && (
           <div className="text-center py-16">
             <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/30 dark:to-orange-900/30 flex items-center justify-center mx-auto mb-6">
               <Gift className="w-12 h-12 text-amber-500" />
@@ -251,19 +335,36 @@ const EarnedPromotions = () => {
       </main>
 
       {/* Redeem Dialog */}
-      <Dialog open={showRedeemDialog} onOpenChange={setShowRedeemDialog}>
+      <Dialog open={showRedeemDialog} onOpenChange={(open) => {
+        setShowRedeemDialog(open);
+        if (!open) {
+          setRedemptionCode(null);
+        }
+      }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <PartyPopper className="w-5 h-5 text-amber-500" />
-              Resgatar Promoção
+              {redemptionCode ? (
+                <>
+                  <QrCode className="w-5 h-5 text-green-500" />
+                  Código de Resgate
+                </>
+              ) : (
+                <>
+                  <PartyPopper className="w-5 h-5 text-amber-500" />
+                  Resgatar Promoção
+                </>
+              )}
             </DialogTitle>
             <DialogDescription>
-              Mostre esta tela para o atendente confirmar o resgate
+              {redemptionCode 
+                ? "Mostre este QR Code ou código para o lojista validar"
+                : "Gere um código para o lojista validar o resgate"
+              }
             </DialogDescription>
           </DialogHeader>
 
-          {selectedPromotion && (
+          {selectedPromotion && !redemptionCode && (
             <div className="py-6">
               <div className="text-center mb-6">
                 <div className="w-20 h-20 rounded-full bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center mx-auto mb-4 shadow-lg">
@@ -293,21 +394,70 @@ const EarnedPromotions = () => {
             </div>
           )}
 
+          {redemptionCode && (
+            <div className="py-6">
+              <div className="flex justify-center mb-4">
+                <div className="p-4 bg-white rounded-xl shadow-lg">
+                  <QRCode value={redemptionCode} size={180} />
+                </div>
+              </div>
+              
+              <div className="flex items-center justify-center gap-2 mb-4">
+                <div className="bg-muted/50 rounded-xl px-6 py-3 text-center">
+                  <p className="text-xs text-muted-foreground mb-1">Código</p>
+                  <p className="font-mono text-2xl font-bold tracking-[0.3em] text-foreground">
+                    {redemptionCode}
+                  </p>
+                </div>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={copyCode}
+                  className="h-12 w-12 rounded-xl"
+                >
+                  {codeCopied ? (
+                    <Check className="w-5 h-5 text-green-500" />
+                  ) : (
+                    <Copy className="w-5 h-5" />
+                  )}
+                </Button>
+              </div>
+
+              <p className="text-sm text-center text-muted-foreground">
+                O lojista deve escanear ou digitar este código para confirmar o resgate
+              </p>
+            </div>
+          )}
+
           <DialogFooter className="flex-col gap-2 sm:flex-col">
-            <Button
-              onClick={handleRedeem}
-              disabled={isRedeeming}
-              className="w-full h-12 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
-            >
-              {isRedeeming ? "Resgatando..." : "Confirmar Resgate"}
-            </Button>
-            <Button
-              variant="outline"
-              onClick={() => setShowRedeemDialog(false)}
-              className="w-full rounded-xl"
-            >
-              Cancelar
-            </Button>
+            {!redemptionCode ? (
+              <Button
+                onClick={handleRequestRedemption}
+                disabled={isRedeeming}
+                className="w-full h-12 rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600"
+              >
+                {isRedeeming ? "Gerando..." : "Gerar Código de Resgate"}
+              </Button>
+            ) : (
+              <Button
+                onClick={() => {
+                  setShowRedeemDialog(false);
+                  setRedemptionCode(null);
+                }}
+                className="w-full h-12 rounded-xl"
+              >
+                Fechar
+              </Button>
+            )}
+            {!redemptionCode && (
+              <Button
+                variant="outline"
+                onClick={() => setShowRedeemDialog(false)}
+                className="w-full rounded-xl"
+              >
+                Cancelar
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

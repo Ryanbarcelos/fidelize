@@ -19,7 +19,8 @@ import {
   BarChart3,
   Copy,
   Check,
-  Zap
+  Zap,
+  ScanLine
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -305,6 +306,16 @@ const BusinessDashboard = () => {
           >
             <Zap className="w-5 h-5 mr-2 text-amber-600" />
             Promoções Automáticas
+          </Button>
+
+          <Button
+            onClick={() => navigate("/validate-redemption")}
+            variant="outline"
+            className="w-full h-14 text-base rounded-3xl shadow-premium hover-scale bg-gradient-to-r from-green-50 to-emerald-50 dark:from-green-950/30 dark:to-emerald-950/30 border-green-200 dark:border-green-800"
+            size="lg"
+          >
+            <ScanLine className="w-5 h-5 mr-2 text-green-600" />
+            Validar Resgate
           </Button>
 
           <Button
