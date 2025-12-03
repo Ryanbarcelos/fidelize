@@ -19,7 +19,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ArrowLeft, Search, User, TrendingUp, Gift, Users, Plus, Minus, ChevronDown, BarChart3 } from "lucide-react";
+import { ArrowLeft, Search, User, TrendingUp, Gift, Users, Plus, Minus, ChevronDown, BarChart3, Mail } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 import { toast } from "sonner";
 import { ClientPointsChart } from "@/components/charts/ClientPointsChart";
@@ -50,6 +50,17 @@ const StoreClients = () => {
   const [pin, setPin] = useState("");
   const [pinError, setPinError] = useState("");
   const [isValidating, setIsValidating] = useState(false);
+  
+  // Dialog state for adding points by email
+  const [showAddByEmailDialog, setShowAddByEmailDialog] = useState(false);
+  const [emailSearch, setEmailSearch] = useState("");
+  const [emailSearchResult, setEmailSearchResult] = useState<FidelityClient | null>(null);
+  const [emailSearchError, setEmailSearchError] = useState("");
+  const [isSearchingEmail, setIsSearchingEmail] = useState(false);
+  const [emailPointsAmount, setEmailPointsAmount] = useState("1");
+  const [emailPin, setEmailPin] = useState("");
+  const [emailPinError, setEmailPinError] = useState("");
+  const [isAddingByEmail, setIsAddingByEmail] = useState(false);
   
   // Chart state
   const [expandedClients, setExpandedClients] = useState<Set<string>>(new Set());
@@ -275,6 +286,117 @@ const StoreClients = () => {
     }
   };
 
+  const handleSearchByEmail = async () => {
+    if (!emailSearch.trim()) {
+      setEmailSearchError("Digite um email");
+      return;
+    }
+
+    setIsSearchingEmail(true);
+    setEmailSearchError("");
+    setEmailSearchResult(null);
+
+    try {
+      // Search in clients list by email
+      const foundClient = clients.find(
+        c => c.userEmail?.toLowerCase() === emailSearch.toLowerCase().trim()
+      );
+
+      if (foundClient) {
+        setEmailSearchResult(foundClient);
+      } else {
+        setEmailSearchError("Cliente não encontrado. Verifique se o email está correto.");
+      }
+    } catch (error) {
+      setEmailSearchError("Erro ao buscar cliente");
+    } finally {
+      setIsSearchingEmail(false);
+    }
+  };
+
+  const handleAddPointsByEmail = async () => {
+    if (emailPin.length !== 4) {
+      setEmailPinError("Digite um PIN de 4 dígitos");
+      return;
+    }
+
+    if (!emailSearchResult || !company) return;
+
+    const amount = parseInt(emailPointsAmount) || 1;
+    if (amount < 1) {
+      setEmailPinError("Quantidade inválida");
+      return;
+    }
+
+    setIsAddingByEmail(true);
+    setEmailPinError("");
+
+    try {
+      const isValid = await validateCompanyPin(company.id, emailPin);
+      
+      if (!isValid) {
+        setEmailPinError("PIN incorreto. Tente novamente.");
+        setIsAddingByEmail(false);
+        return;
+      }
+
+      const newBalance = emailSearchResult.balance + amount;
+
+      const result = await updateCardBalance(emailSearchResult.id, newBalance);
+      
+      if (result?.success) {
+        await addTransaction(
+          emailSearchResult.id,
+          company.id,
+          "points_added",
+          amount,
+          newBalance,
+          "business"
+        );
+        
+        const earnedPromotions = await checkAndAwardPromotions(
+          emailSearchResult.id,
+          emailSearchResult.userId,
+          newBalance,
+          company.id
+        );
+        
+        if (earnedPromotions.length > 0) {
+          earnedPromotions.forEach((ep) => {
+            toast.success(
+              `🎉 Cliente ganhou: ${ep.promotion?.title}`,
+              { duration: 5000 }
+            );
+          });
+        }
+        
+        await refetchClients();
+        toast.success(`${amount} ponto(s) adicionado(s) para ${emailSearchResult.userName || emailSearchResult.userEmail}!`);
+        setShowAddByEmailDialog(false);
+        setEmailSearch("");
+        setEmailSearchResult(null);
+        setEmailPointsAmount("1");
+        setEmailPin("");
+      } else {
+        toast.error(result?.error || "Erro ao atualizar pontos");
+      }
+    } catch (error) {
+      setEmailPinError("Erro ao validar PIN");
+    } finally {
+      setIsAddingByEmail(false);
+    }
+  };
+
+  const openAddByEmailDialog = () => {
+    setShowAddByEmailDialog(true);
+    setEmailSearch("");
+    setEmailSearchResult(null);
+    setEmailSearchError("");
+    setEmailPointsAmount("1");
+    setEmailPin("");
+    setEmailPinError("");
+  };
+
   const loading = cardsLoading || clientsLoading;
 
   if (loading) {
@@ -306,15 +428,25 @@ const StoreClients = () => {
           </div>
           
           {/* Search Bar */}
-          <div className="relative">
+          <div className="relative mb-3">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input
-              placeholder="Buscar por nome ou ID..."
+              placeholder="Buscar por nome ou email..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-10 h-12 rounded-2xl"
             />
           </div>
+          
+          {/* Add by Email Button */}
+          <Button
+            onClick={openAddByEmailDialog}
+            className="w-full h-12 rounded-2xl"
+            variant="outline"
+          >
+            <Mail className="w-4 h-4 mr-2" />
+            Adicionar Pontos por Email
+          </Button>
         </div>
       </header>
 
@@ -615,6 +747,126 @@ const StoreClients = () => {
             >
               {isValidating ? "Validando..." : pointsAction === "add" ? "Adicionar" : "Remover"}
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Add Points by Email Dialog */}
+      <Dialog open={showAddByEmailDialog} onOpenChange={setShowAddByEmailDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Mail className="w-5 h-5 text-primary" />
+              Adicionar Pontos por Email
+            </DialogTitle>
+            <DialogDescription>
+              Busque um cliente pelo email e adicione pontos
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Email Search */}
+            <div>
+              <label className="text-sm font-medium text-foreground mb-2 block">
+                Email do Cliente
+              </label>
+              <div className="flex gap-2">
+                <Input
+                  type="email"
+                  value={emailSearch}
+                  onChange={(e) => {
+                    setEmailSearch(e.target.value);
+                    setEmailSearchError("");
+                  }}
+                  placeholder="cliente@email.com"
+                  className="flex-1"
+                />
+                <Button 
+                  onClick={handleSearchByEmail}
+                  disabled={isSearchingEmail}
+                  variant="secondary"
+                >
+                  {isSearchingEmail ? "..." : <Search className="w-4 h-4" />}
+                </Button>
+              </div>
+              {emailSearchError && (
+                <p className="text-sm text-destructive mt-1">{emailSearchError}</p>
+              )}
+            </div>
+
+            {/* Search Result */}
+            {emailSearchResult && (
+              <Card className="p-4 bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-800">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center">
+                    <User className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-semibold">{emailSearchResult.userName || "Cliente"}</p>
+                    <p className="text-sm text-muted-foreground">{emailSearchResult.userEmail}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xl font-bold text-green-600">{emailSearchResult.balance}</p>
+                    <p className="text-xs text-muted-foreground">pontos</p>
+                  </div>
+                </div>
+              </Card>
+            )}
+
+            {/* Points Amount */}
+            {emailSearchResult && (
+              <>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    Quantidade de Pontos
+                  </label>
+                  <Input
+                    type="number"
+                    min="1"
+                    value={emailPointsAmount}
+                    onChange={(e) => setEmailPointsAmount(e.target.value)}
+                    className="h-12 text-center text-xl font-bold"
+                  />
+                </div>
+                
+                {/* PIN Input */}
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">
+                    PIN da Loja (4 dígitos)
+                  </label>
+                  <Input
+                    type="password"
+                    inputMode="numeric"
+                    maxLength={4}
+                    value={emailPin}
+                    onChange={(e) => {
+                      setEmailPin(e.target.value.replace(/\D/g, ""));
+                      setEmailPinError("");
+                    }}
+                    placeholder="0000"
+                    className="h-14 text-center text-2xl tracking-[0.5em] font-mono"
+                  />
+                </div>
+                
+                {emailPinError && (
+                  <p className="text-sm text-destructive text-center">{emailPinError}</p>
+                )}
+              </>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowAddByEmailDialog(false)}>
+              Cancelar
+            </Button>
+            {emailSearchResult && (
+              <Button 
+                onClick={handleAddPointsByEmail} 
+                disabled={isAddingByEmail || emailPin.length !== 4}
+              >
+                {isAddingByEmail ? "Adicionando..." : "Adicionar Pontos"}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>
