@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useGamification } from "@/hooks/useGamification";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { useAutomaticPromotions } from "@/hooks/useAutomaticPromotions";
+import { usePWA } from "@/hooks/usePWA";
 import { FidelityCardItem } from "@/components/cards/FidelityCardItem";
 import { AddStoreModal } from "@/components/cards/AddStoreModal";
 import { SearchBar } from "@/components/common/SearchBar";
@@ -22,6 +23,7 @@ const Home = () => {
   const [sortBy, setSortBy] = useState("name");
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
   const { level, xpProgress } = useGamification();
+  const { isInstalled: isPWAInstalled } = usePWA();
   const [pendingPromotionsCount, setPendingPromotionsCount] = useState(0);
 
   // Fetch pending promotions count
@@ -147,21 +149,23 @@ const Home = () => {
           </div>
         </Card>
 
-        {/* Install App Card */}
-        <Card 
-          onClick={() => navigate("/install")}
-          className="p-4 mb-6 border-0 shadow-md rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50 cursor-pointer hover:shadow-lg transition-all fade-in"
-        >
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-md">
-              <Download className="w-6 h-6 text-white" />
+        {/* Install App Card - only show if not installed as PWA */}
+        {!isPWAInstalled && (
+          <Card 
+            onClick={() => navigate("/install")}
+            className="p-4 mb-6 border-0 shadow-md rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50 cursor-pointer hover:shadow-lg transition-all fade-in"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-md">
+                <Download className="w-6 h-6 text-white" />
+              </div>
+              <div className="flex-1">
+                <h3 className="font-semibold text-foreground">Instalar App</h3>
+                <p className="text-sm text-muted-foreground">Adicione à tela inicial do seu celular</p>
+              </div>
             </div>
-            <div className="flex-1">
-              <h3 className="font-semibold text-foreground">Instalar App</h3>
-              <p className="text-sm text-muted-foreground">Adicione à tela inicial do seu celular</p>
-            </div>
-          </div>
-        </Card>
+          </Card>
+        )}
 
         <div className="mb-8 space-y-4 fade-in">
           <h2 className="text-3xl font-bold text-foreground tracking-tight">Meus Cartões</h2>
