@@ -150,27 +150,44 @@ const BusinessDashboard = () => {
       <main className={`container mx-auto px-4 py-8 space-y-6 transition-all duration-700 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}>
-        {/* Share Code Card */}
+        {/* Share Code Card - Destaque */}
         {company && (
-          <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 fade-in">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-muted-foreground mb-1">Código da Loja</p>
-                <p className="text-2xl font-bold text-foreground tracking-wider">{company.shareCode}</p>
-                <p className="text-xs text-muted-foreground mt-1">Compartilhe com seus clientes</p>
+          <Card className="p-6 border-2 border-primary/30 shadow-premium-lg rounded-3xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent fade-in relative overflow-hidden">
+            {/* Decorative background */}
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
+            
+            <div className="relative">
+              <div className="flex items-center gap-2 mb-3">
+                <QrCode className="w-5 h-5 text-primary" />
+                <p className="text-sm font-bold text-primary uppercase tracking-wider">Código da Loja</p>
               </div>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={copyShareCode}
-                className="rounded-xl h-12 w-12"
-              >
-                {codeCopied ? (
-                  <Check className="w-5 h-5 text-green-500" />
-                ) : (
-                  <Copy className="w-5 h-5" />
-                )}
-              </Button>
+              
+              <div className="flex items-center justify-between gap-4">
+                <div className="flex-1 bg-background/80 backdrop-blur-sm rounded-2xl p-4 border border-border/50">
+                  <p className="text-3xl md:text-4xl font-black text-foreground tracking-[0.2em] font-mono text-center">
+                    {company.shareCode}
+                  </p>
+                </div>
+                
+                <Button
+                  onClick={copyShareCode}
+                  className={`rounded-2xl h-16 w-16 transition-all duration-300 ${
+                    codeCopied 
+                      ? 'bg-green-500 hover:bg-green-600' 
+                      : 'gradient-glow hover:shadow-glow'
+                  }`}
+                >
+                  {codeCopied ? (
+                    <Check className="w-7 h-7 text-white" />
+                  ) : (
+                    <Copy className="w-7 h-7 text-white" />
+                  )}
+                </Button>
+              </div>
+              
+              <p className="text-sm text-muted-foreground mt-4 text-center">
+                📱 Compartilhe este código para seus clientes adicionarem sua loja no app
+              </p>
             </div>
           </Card>
         )}
