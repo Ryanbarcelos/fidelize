@@ -16,22 +16,32 @@ import { ptBR } from "date-fns/locale";
 
 const Notifications = () => {
   const navigate = useNavigate();
-  const { currentUser } = useAuth();
-  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const { currentUser, isLoading } = useAuth();
+  const { notifications, markAsRead, markAllAsRead, loading: notificationsLoading } = useNotifications();
   const [selectedNotification, setSelectedNotification] = useState<any>(null);
 
   useEffect(() => {
-    if (!currentUser || currentUser.accountType !== "customer") {
+    // Only redirect after loading is complete
+    if (!isLoading && currentUser && currentUser.accountType === "business") {
       navigate("/");
     }
-  }, [currentUser, navigate]);
+  }, [currentUser, isLoading, navigate]);
 
   const handleNotificationClick = (notification: any) => {
     setSelectedNotification(notification);
     markAsRead(notification.id);
   };
 
-  if (!currentUser || currentUser.accountType !== "customer") {
+  // Show loading while auth is loading
+  if (isLoading || notificationsLoading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-pulse text-muted-foreground">Carregando...</div>
+      </div>
+    );
+  }
+
+  if (!currentUser) {
     return null;
   }
 
