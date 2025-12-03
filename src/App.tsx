@@ -26,6 +26,7 @@ import Notifications from "./screens/Notifications";
 import Login from "./screens/Login";
 import SignUp from "./screens/SignUp";
 import NotFound from "./screens/NotFound";
+import DocumentationPDF from "./screens/DocumentationPDF";
 
 const queryClient = new QueryClient();
 
@@ -82,6 +83,7 @@ const App = () => (
           <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
           <Route path="/nearby-stores" element={<ProtectedRoute><NearbyStores /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/documentation" element={<ProtectedRoute><DocumentationPDF /></ProtectedRoute>} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
