@@ -667,6 +667,11 @@ export type Database = {
       }
       generate_share_code: { Args: { store_name: string }; Returns: string }
       unaccent: { Args: { "": string }; Returns: string }
+      user_has_card_for_company: {
+        Args: { company_uuid: string }
+        Returns: boolean
+      }
+      user_owns_company: { Args: { company_uuid: string }; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
