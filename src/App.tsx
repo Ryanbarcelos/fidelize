@@ -17,6 +17,7 @@ import TransactionHistory from "./screens/TransactionHistory";
 import Achievements from "./screens/Achievements";
 import NearbyStores from "./screens/NearbyStores";
 import Profile from "./screens/Profile";
+import Settings from "./screens/Settings";
 import StorePanel from "./screens/StorePanel";
 import StoreClients from "./screens/StoreClients";
 import StorePromotions from "./screens/StorePromotions";
@@ -83,6 +84,7 @@ const App = () => (
           <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
           <Route path="/nearby-stores" element={<ProtectedRoute><NearbyStores /></ProtectedRoute>} />
           <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
+          <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
           <Route path="/documentation" element={<DocumentationPDF />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
