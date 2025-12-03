@@ -135,6 +135,57 @@ export type Database = {
           },
         ]
       }
+      fidelity_transactions: {
+        Row: {
+          balance_after: number
+          company_id: string
+          created_at: string | null
+          created_by: string | null
+          fidelity_card_id: string
+          id: string
+          points: number
+          type: string
+          user_id: string
+        }
+        Insert: {
+          balance_after: number
+          company_id: string
+          created_at?: string | null
+          created_by?: string | null
+          fidelity_card_id: string
+          id?: string
+          points: number
+          type: string
+          user_id: string
+        }
+        Update: {
+          balance_after?: number
+          company_id?: string
+          created_at?: string | null
+          created_by?: string | null
+          fidelity_card_id?: string
+          id?: string
+          points?: number
+          type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fidelity_transactions_company_id_fkey"
+            columns: ["company_id"]
+            isOneToOne: false
+            referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "fidelity_transactions_fidelity_card_id_fkey"
+            columns: ["fidelity_card_id"]
+            isOneToOne: false
+            referencedRelation: "fidelity_cards"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loyalty_cards: {
         Row: {
           card_number: string

@@ -5,6 +5,7 @@ export { useAuth } from './useAuth';
 export { useCards } from './useCards';
 export { useCompanies } from './useCompanies';
 export { useFidelityCards } from './useFidelityCards';
+export { useFidelityTransactions } from './useFidelityTransactions';
 export { useAchievements } from './useAchievements';
 export { useGamification } from './useGamification';
 export { useAuditLog } from './useAuditLog';

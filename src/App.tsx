@@ -8,6 +8,7 @@ import Home from "./screens/Home";
 import AddCard from "./screens/AddCard";
 import CardDetails from "./screens/CardDetails";
 import FidelityCardDetails from "./screens/FidelityCardDetails";
+import FidelityTransactionHistory from "./screens/FidelityTransactionHistory";
 import TransactionHistory from "./screens/TransactionHistory";
 import Achievements from "./screens/Achievements";
 import NearbyStores from "./screens/NearbyStores";
@@ -68,6 +69,7 @@ const App = () => (
           <Route path="/edit-card/:id" element={<ProtectedRoute><AddCard /></ProtectedRoute>} />
           <Route path="/card/:id" element={<ProtectedRoute><CardDetails /></ProtectedRoute>} />
           <Route path="/fidelity-card/:id" element={<ProtectedRoute><FidelityCardDetails /></ProtectedRoute>} />
+          <Route path="/fidelity-card/:id/history" element={<ProtectedRoute><FidelityTransactionHistory /></ProtectedRoute>} />
           <Route path="/card/:id/history" element={<ProtectedRoute><TransactionHistory /></ProtectedRoute>} />
           <Route path="/achievements" element={<ProtectedRoute><Achievements /></ProtectedRoute>} />
           <Route path="/nearby-stores" element={<ProtectedRoute><NearbyStores /></ProtectedRoute>} />
