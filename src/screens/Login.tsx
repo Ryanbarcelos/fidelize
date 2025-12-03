@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Wallet } from "lucide-react";
+import { Wallet, Download } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
@@ -117,6 +117,18 @@ const Login = () => {
             >
               Criar conta grátis
             </Link>
+          </div>
+
+          {/* Install App Button */}
+          <div className="mt-6 pt-6 border-t">
+            <Button
+              variant="outline"
+              onClick={() => navigate("/install")}
+              className="w-full h-11 rounded-2xl"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              Instalar App no Celular
+            </Button>
           </div>
         </Card>
       </div>
