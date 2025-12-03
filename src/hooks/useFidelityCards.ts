@@ -46,6 +46,32 @@ export function useFidelityCards() {
     }
   }, [user, currentUser]);
 
+  // Real-time subscription for automatic updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('fidelity-cards-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'fidelity_cards',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          // Refresh cards when any change happens
+          fetchMyCards();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const fetchMyCards = async () => {
     try {
       setLoading(true);

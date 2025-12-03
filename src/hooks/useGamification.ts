@@ -93,6 +93,77 @@ export const useGamification = () => {
     levelUp: false,
   });
 
+  const fetchGamificationData = async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch gamification data
+      const { data, error } = await supabase
+        .from("user_gamification")
+        .select("*")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      // Also fetch actual redeemed promotions count for accuracy
+      const { count: redeemedCount } = await supabase
+        .from("earned_promotions")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .eq("is_redeemed", true);
+
+      if (data) {
+        // Use the higher value between stored and actual count
+        const actualRewards = Math.max(data.total_rewards_collected, redeemedCount || 0);
+        const actualLevel = calculateLevel(actualRewards);
+        
+        // Update if there's a discrepancy
+        if (actualRewards !== data.total_rewards_collected || actualLevel !== data.current_level) {
+          await supabase
+            .from("user_gamification")
+            .update({
+              total_rewards_collected: actualRewards,
+              current_level: actualLevel,
+              current_xp: actualRewards,
+            })
+            .eq("user_id", user.id);
+        }
+
+        setGamificationData({
+          totalRewardsCollected: actualRewards,
+          currentLevel: actualLevel,
+          currentXP: actualRewards,
+          medals: data.medals || [],
+        });
+      } else {
+        // Initialize gamification data for new users
+        const { error: insertError } = await supabase
+          .from("user_gamification")
+          .insert({
+            user_id: user.id,
+            total_rewards_collected: redeemedCount || 0,
+            current_level: calculateLevel(redeemedCount || 0),
+            current_xp: redeemedCount || 0,
+            medals: [],
+          });
+
+        if (insertError) throw insertError;
+        
+        setGamificationData({
+          totalRewardsCollected: redeemedCount || 0,
+          currentLevel: calculateLevel(redeemedCount || 0),
+          currentXP: redeemedCount || 0,
+          medals: [],
+        });
+      }
+    } catch (error) {
+      console.error("Error fetching gamification data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // Fetch gamification data from Supabase
   useEffect(() => {
     if (!user) {
@@ -100,76 +171,40 @@ export const useGamification = () => {
       return;
     }
 
-    const fetchGamificationData = async () => {
-      try {
-        // Fetch gamification data
-        const { data, error } = await supabase
-          .from("user_gamification")
-          .select("*")
-          .eq("user_id", user.id)
-          .maybeSingle();
-
-        if (error) throw error;
-
-        // Also fetch actual redeemed promotions count for accuracy
-        const { count: redeemedCount } = await supabase
-          .from("earned_promotions")
-          .select("*", { count: "exact", head: true })
-          .eq("user_id", user.id)
-          .eq("is_redeemed", true);
-
-        if (data) {
-          // Use the higher value between stored and actual count
-          const actualRewards = Math.max(data.total_rewards_collected, redeemedCount || 0);
-          const actualLevel = calculateLevel(actualRewards);
-          
-          // Update if there's a discrepancy
-          if (actualRewards !== data.total_rewards_collected || actualLevel !== data.current_level) {
-            await supabase
-              .from("user_gamification")
-              .update({
-                total_rewards_collected: actualRewards,
-                current_level: actualLevel,
-                current_xp: actualRewards,
-              })
-              .eq("user_id", user.id);
-          }
-
-          setGamificationData({
-            totalRewardsCollected: actualRewards,
-            currentLevel: actualLevel,
-            currentXP: actualRewards,
-            medals: data.medals || [],
-          });
-        } else {
-          // Initialize gamification data for new users
-          const { error: insertError } = await supabase
-            .from("user_gamification")
-            .insert({
-              user_id: user.id,
-              total_rewards_collected: redeemedCount || 0,
-              current_level: calculateLevel(redeemedCount || 0),
-              current_xp: redeemedCount || 0,
-              medals: [],
-            });
-
-          if (insertError) throw insertError;
-          
-          setGamificationData({
-            totalRewardsCollected: redeemedCount || 0,
-            currentLevel: calculateLevel(redeemedCount || 0),
-            currentXP: redeemedCount || 0,
-            medals: [],
-          });
-        }
-      } catch (error) {
-        console.error("Error fetching gamification data:", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchGamificationData();
+
+    // Real-time subscription for automatic updates
+    const channel = supabase
+      .channel('gamification-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'earned_promotions',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchGamificationData();
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_gamification',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          fetchGamificationData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [user]);
 
   const triggerCelebration = useCallback(() => {
