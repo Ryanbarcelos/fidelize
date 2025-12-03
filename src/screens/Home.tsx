@@ -9,7 +9,7 @@ import { SearchBar } from "@/components/common/SearchBar";
 import { SortSelect } from "@/components/common/SortSelect";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, Wallet, Store, Gift } from "lucide-react";
+import { Plus, Wallet, Store, Gift, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 
@@ -125,7 +125,7 @@ const Home = () => {
         {/* My Promotions Section */}
         <Card 
           onClick={() => navigate("/earned-promotions")}
-          className="p-4 mb-6 border-0 shadow-md rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 cursor-pointer hover:shadow-lg transition-all fade-in"
+          className="p-4 mb-4 border-0 shadow-md rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 cursor-pointer hover:shadow-lg transition-all fade-in"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md">
@@ -144,6 +144,22 @@ const Home = () => {
                 {pendingPromotionsCount}
               </span>
             )}
+          </div>
+        </Card>
+
+        {/* Install App Card */}
+        <Card 
+          onClick={() => navigate("/install")}
+          className="p-4 mb-6 border-0 shadow-md rounded-2xl bg-gradient-to-br from-indigo-50 to-purple-50 dark:from-indigo-950/50 dark:to-purple-950/50 cursor-pointer hover:shadow-lg transition-all fade-in"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-500 flex items-center justify-center shadow-md">
+              <Download className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">Instalar App</h3>
+              <p className="text-sm text-muted-foreground">Adicione à tela inicial do seu celular</p>
+            </div>
           </div>
         </Card>
 
