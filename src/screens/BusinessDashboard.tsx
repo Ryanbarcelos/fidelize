@@ -16,7 +16,6 @@ import {
   Users, 
   TrendingUp, 
   Gift, 
-  QrCode, 
   Megaphone,
   UserCircle,
   BarChart3,
@@ -217,7 +216,7 @@ const BusinessDashboard = () => {
             
             <div className="relative">
               <div className="flex items-center gap-2 mb-3">
-                <QrCode className="w-5 h-5 text-primary" />
+                <Copy className="w-5 h-5 text-primary" />
                 <p className="text-sm font-bold text-primary uppercase tracking-wider">Código da Loja</p>
               </div>
               
@@ -349,15 +348,6 @@ const BusinessDashboard = () => {
 
         {/* Premium Main Actions */}
         <div className="space-y-4 slide-in" style={{ animationDelay: '100ms' }}>
-          <Button
-            onClick={() => navigate("/store-panel")}
-            className="w-full h-16 text-lg rounded-3xl shadow-premium-lg hover:shadow-glow transition-all hover-scale-lg gradient-glow"
-            size="lg"
-          >
-            <QrCode className="w-6 h-6 mr-3" />
-            Adicionar Pontos (QR Code)
-          </Button>
-
           <Button
             onClick={() => navigate("/store-clients")}
             variant="outline"
