@@ -74,6 +74,19 @@ const BusinessDashboard = () => {
           queryClient.invalidateQueries({ queryKey: ["business-transactions", company.id] });
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'fidelity_cards',
+          filter: `company_id=eq.${company.id}`,
+        },
+        () => {
+          // This will trigger useFidelityCards to refetch
+          queryClient.invalidateQueries({ queryKey: ["fidelity-cards"] });
+        }
+      )
       .subscribe();
 
     return () => {
@@ -91,50 +104,46 @@ const BusinessDashboard = () => {
     }
   }, [currentUser, isAuthenticated, authLoading, navigate]);
 
-  // Calculate store stats - now using real fidelity_cards data
+  // Calculate store stats from real fidelity data (real-time!)
   const storeStats = useMemo(() => {
-    const storeName = currentUser?.storeName || "";
-    const storeCards = cards.filter(c => c.storeName === storeName);
-    
-    // Total clients from fidelity_cards table (real data!)
+    // Total clients from fidelity_cards table
     const totalClients = clients.length;
     
-    // Points added today
+    // Total points across all clients
+    const totalPoints = clients.reduce((sum, client) => sum + client.balance, 0);
+    
+    // Points added today (from fidelity_transactions)
     const today = new Date().toDateString();
     let pointsAddedToday = 0;
-    storeCards.forEach(card => {
-      card.transactions?.forEach(t => {
-        if (t.type === 'points_added' && new Date(t.timestamp).toDateString() === today) {
-          pointsAddedToday += t.points;
-        }
-      });
+    transactions.forEach(t => {
+      if (t.type === 'points_added' && new Date(t.created_at).toDateString() === today) {
+        pointsAddedToday += t.points;
+      }
     });
     
-    // Total rewards collected
-    let rewardsCollected = 0;
-    storeCards.forEach(card => {
-      rewardsCollected += (card.transactions?.filter(t => t.type === 'reward_collected').length || 0);
-    });
+    // Total rewards collected (from fidelity_transactions)
+    const rewardsCollected = transactions.filter(t => t.type === 'reward_collected').length;
     
-    // Weekly activity (last 7 days)
+    // Weekly activity (last 7 days) from fidelity_transactions
     const weeklyActivity = Array(7).fill(0);
-    storeCards.forEach(card => {
-      card.transactions?.forEach(t => {
-        const transactionDate = new Date(t.timestamp);
+    transactions.forEach(t => {
+      if (t.type === 'points_added') {
+        const transactionDate = new Date(t.created_at);
         const daysAgo = Math.floor((Date.now() - transactionDate.getTime()) / (1000 * 60 * 60 * 24));
-        if (daysAgo < 7) {
+        if (daysAgo >= 0 && daysAgo < 7) {
           weeklyActivity[6 - daysAgo] += t.points;
         }
-      });
+      }
     });
     
     return {
       totalClients,
+      totalPoints,
       pointsAddedToday,
       rewardsCollected,
       weeklyActivity,
     };
-  }, [cards, currentUser, clients]);
+  }, [clients, transactions]);
 
   const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "L";
 
@@ -273,12 +282,28 @@ const BusinessDashboard = () => {
             </div>
           </Card>
 
-          <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 col-span-2 hover-scale">
+          <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 hover-scale">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="w-12 h-12 rounded-2xl bg-amber-500 flex items-center justify-center shadow-lg">
+                <TrendingUp className="w-6 h-6 text-white" />
+              </div>
+              <p className="text-sm font-semibold text-muted-foreground">Total Pontos</p>
+            </div>
+            <div className="flex items-baseline gap-2">
+              <AnimatedCounter 
+                value={storeStats.totalPoints} 
+                className="text-4xl font-bold text-foreground tracking-tight"
+              />
+              <span className="text-sm font-medium text-muted-foreground">pts</span>
+            </div>
+          </Card>
+
+          <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 hover-scale">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-12 h-12 rounded-2xl bg-purple-500 flex items-center justify-center shadow-lg">
                 <Gift className="w-6 h-6 text-white" />
               </div>
-              <p className="text-sm font-semibold text-muted-foreground">Recompensas Coletadas</p>
+              <p className="text-sm font-semibold text-muted-foreground">Recompensas</p>
             </div>
             <AnimatedCounter 
               value={storeStats.rewardsCollected} 
