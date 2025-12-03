@@ -2,18 +2,21 @@ import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCards } from "@/hooks/useCards";
+import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Search, User, TrendingUp, Gift } from "lucide-react";
+import { ArrowLeft, Search, User, TrendingUp, Gift, Users } from "lucide-react";
 import { Progress } from "@/components/ui/progress";
 
 const StoreClients = () => {
   const navigate = useNavigate();
   const { currentUser } = useAuth();
-  const { cards, loading } = useCards();
+  const { cards, loading: cardsLoading } = useCards();
+  const { clients, loading: clientsLoading } = useFidelityCards();
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Get legacy cards from loyalty_cards table
   const storeCards = useMemo(() => {
     const storeName = currentUser?.storeName || "";
     let filtered = cards.filter(c => c.storeName === storeName);
@@ -29,6 +32,9 @@ const StoreClients = () => {
     
     return filtered;
   }, [cards, currentUser, searchQuery]);
+
+  // Total clients from new fidelity_cards table
+  const totalFidelityClients = clients.length;
 
   const getTotalRewards = (card: any) => {
     return card.transactions?.filter((t: any) => t.type === 'reward_collected').length || 0;
@@ -49,6 +55,8 @@ const StoreClients = () => {
     if (diffDays < 30) return `${Math.floor(diffDays / 7)} semanas atrás`;
     return `${Math.floor(diffDays / 30)} meses atrás`;
   };
+
+  const loading = cardsLoading || clientsLoading;
 
   if (loading) {
     return (
@@ -92,13 +100,58 @@ const StoreClients = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 animate-fade-in">
-        {/* Summary */}
-        <Card className="p-4 mb-6 border-0 shadow-md rounded-2xl bg-gradient-to-br from-primary/5 to-primary-light/5">
-          <p className="text-sm text-muted-foreground mb-1">Total de Clientes</p>
-          <p className="text-3xl font-bold text-foreground">{storeCards.length}</p>
-        </Card>
+        {/* Summary - Now shows real count from fidelity_cards */}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <Card className="p-4 border-0 shadow-md rounded-2xl bg-gradient-to-br from-primary/5 to-primary-light/5">
+            <div className="flex items-center gap-3 mb-2">
+              <Users className="w-5 h-5 text-primary" />
+              <p className="text-sm text-muted-foreground">Clientes (Novo Sistema)</p>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{totalFidelityClients}</p>
+          </Card>
+          <Card className="p-4 border-0 shadow-md rounded-2xl bg-gradient-to-br from-muted/30 to-muted/10">
+            <div className="flex items-center gap-3 mb-2">
+              <User className="w-5 h-5 text-muted-foreground" />
+              <p className="text-sm text-muted-foreground">Clientes (Legado)</p>
+            </div>
+            <p className="text-3xl font-bold text-foreground">{storeCards.length}</p>
+          </Card>
+        </div>
 
-        {/* Clients List */}
+        {/* Fidelity Cards Clients */}
+        {clients.length > 0 && (
+          <div className="mb-6">
+            <h3 className="font-bold text-foreground mb-3">Clientes do Novo Sistema</h3>
+            <div className="space-y-3">
+              {clients.map((client, index) => (
+                <Card 
+                  key={client.id}
+                  className="p-4 border-0 shadow-md rounded-2xl bg-gradient-to-br from-green-50 to-green-100 dark:from-green-950 dark:to-green-900"
+                  style={{ animationDelay: `${index * 50}ms` }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center">
+                      <User className="w-6 h-6 text-white" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="font-semibold text-foreground">Cliente #{client.id.slice(0, 8)}</p>
+                      <p className="text-sm text-muted-foreground">
+                        Desde {new Date(client.createdAt).toLocaleDateString('pt-BR')}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-green-600">{client.balance}</p>
+                      <p className="text-xs text-muted-foreground">pontos</p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Legacy Clients List */}
+        <h3 className="font-bold text-foreground mb-3">Clientes (Sistema Legado)</h3>
         {storeCards.length === 0 ? (
           <div className="text-center py-16">
             <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-muted/50 to-muted/30 flex items-center justify-center mx-auto mb-6">
