@@ -24,7 +24,9 @@ import {
   Calendar,
   BarChart3,
   Minus,
-  FileText
+  FileText,
+  Download,
+  FileSpreadsheet
 } from "lucide-react";
 import { format, subDays, startOfDay, startOfWeek, startOfMonth, startOfYear } from "date-fns";
 import { ptBR } from "date-fns/locale";
@@ -40,6 +42,9 @@ import {
   Pie,
   Cell
 } from "recharts";
+import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type PeriodFilter = "today" | "week" | "month" | "year" | "all";
 
@@ -164,6 +169,138 @@ const BusinessReports = () => {
     all: "Todo o Período",
   };
 
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "points_added": return "Pontos Adicionados";
+      case "points_removed": return "Pontos Removidos";
+      case "reward_collected": return "Recompensa Coletada";
+      default: return type;
+    }
+  };
+
+  const exportToCSV = () => {
+    try {
+      const headers = ["Data", "Tipo", "Pontos", "Saldo Após", "Criado Por"];
+      const rows = transactions.map(t => [
+        format(new Date(t.created_at!), "dd/MM/yyyy HH:mm"),
+        getTypeLabel(t.type),
+        t.points.toString(),
+        t.balance_after.toString(),
+        t.created_by === "business" ? "Loja" : "Cliente"
+      ]);
+
+      const csvContent = [
+        `Relatório - ${currentUser?.storeName}`,
+        `Período: ${periodLabels[period]}`,
+        `Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`,
+        "",
+        "RESUMO",
+        `Pontos Distribuídos,${stats.pointsAdded}`,
+        `Pontos Removidos,${stats.pointsRemoved}`,
+        `Recompensas Coletadas,${stats.rewardsCollected}`,
+        `Clientes Ativos,${stats.activeClients}`,
+        `Total de Transações,${stats.totalTransactions}`,
+        "",
+        "TRANSAÇÕES",
+        headers.join(","),
+        ...rows.map(row => row.join(","))
+      ].join("\n");
+
+      const blob = new Blob(["\ufeff" + csvContent], { type: "text/csv;charset=utf-8;" });
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `relatorio_${currentUser?.storeName?.replace(/\s+/g, "_")}_${format(new Date(), "yyyyMMdd")}.csv`;
+      link.click();
+      
+      toast.success("CSV exportado com sucesso!");
+    } catch (error) {
+      toast.error("Erro ao exportar CSV");
+    }
+  };
+
+  const exportToPDF = () => {
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Header
+      doc.setFontSize(20);
+      doc.setTextColor(79, 70, 229);
+      doc.text("Relatório de Fidelidade", pageWidth / 2, 20, { align: "center" });
+      
+      doc.setFontSize(14);
+      doc.setTextColor(0, 0, 0);
+      doc.text(currentUser?.storeName || "Minha Loja", pageWidth / 2, 30, { align: "center" });
+      
+      doc.setFontSize(10);
+      doc.setTextColor(100, 100, 100);
+      doc.text(`Período: ${periodLabels[period]}`, pageWidth / 2, 38, { align: "center" });
+      doc.text(`Gerado em: ${format(new Date(), "dd/MM/yyyy HH:mm")}`, pageWidth / 2, 44, { align: "center" });
+
+      // Summary Table
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text("Resumo", 14, 58);
+      
+      autoTable(doc, {
+        startY: 62,
+        head: [["Métrica", "Valor"]],
+        body: [
+          ["Pontos Distribuídos", stats.pointsAdded.toString()],
+          ["Pontos Removidos", stats.pointsRemoved.toString()],
+          ["Recompensas Coletadas", stats.rewardsCollected.toString()],
+          ["Clientes Ativos", `${stats.activeClients} de ${clients.length}`],
+          ["Total de Transações", stats.totalTransactions.toString()],
+        ],
+        theme: "striped",
+        headStyles: { fillColor: [79, 70, 229] },
+        margin: { left: 14, right: 14 },
+      });
+
+      // Transactions Table
+      const finalY = (doc as any).lastAutoTable.finalY || 100;
+      doc.text("Últimas Transações", 14, finalY + 15);
+      
+      const transactionRows = transactions.slice(0, 50).map(t => [
+        format(new Date(t.created_at!), "dd/MM/yyyy HH:mm"),
+        getTypeLabel(t.type),
+        t.points.toString(),
+        t.balance_after.toString(),
+        t.created_by === "business" ? "Loja" : "Cliente"
+      ]);
+
+      autoTable(doc, {
+        startY: finalY + 20,
+        head: [["Data", "Tipo", "Pontos", "Saldo", "Por"]],
+        body: transactionRows,
+        theme: "striped",
+        headStyles: { fillColor: [79, 70, 229] },
+        margin: { left: 14, right: 14 },
+        styles: { fontSize: 8 },
+      });
+
+      // Footer
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(
+          `Página ${i} de ${pageCount}`,
+          pageWidth / 2,
+          doc.internal.pageSize.getHeight() - 10,
+          { align: "center" }
+        );
+      }
+
+      doc.save(`relatorio_${currentUser?.storeName?.replace(/\s+/g, "_")}_${format(new Date(), "yyyyMMdd")}.pdf`);
+      toast.success("PDF exportado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      toast.error("Erro ao exportar PDF");
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -199,23 +336,45 @@ const BusinessReports = () => {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Period Filter */}
+        {/* Period Filter & Export Buttons */}
         <Card className="p-4 rounded-2xl border-0 shadow-premium">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-primary" />
-            <span className="font-medium text-foreground">Período:</span>
-            <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
-              <SelectTrigger className="flex-1 rounded-xl">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="today">Hoje</SelectItem>
-                <SelectItem value="week">Esta Semana</SelectItem>
-                <SelectItem value="month">Este Mês</SelectItem>
-                <SelectItem value="year">Este Ano</SelectItem>
-                <SelectItem value="all">Todo o Período</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-primary" />
+              <span className="font-medium text-foreground">Período:</span>
+              <Select value={period} onValueChange={(v) => setPeriod(v as PeriodFilter)}>
+                <SelectTrigger className="flex-1 rounded-xl">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="today">Hoje</SelectItem>
+                  <SelectItem value="week">Esta Semana</SelectItem>
+                  <SelectItem value="month">Este Mês</SelectItem>
+                  <SelectItem value="year">Este Ano</SelectItem>
+                  <SelectItem value="all">Todo o Período</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            {/* Export Buttons */}
+            <div className="flex gap-3">
+              <Button 
+                onClick={exportToPDF}
+                variant="outline"
+                className="flex-1 rounded-xl"
+              >
+                <Download className="w-4 h-4 mr-2" />
+                Exportar PDF
+              </Button>
+              <Button 
+                onClick={exportToCSV}
+                variant="outline"
+                className="flex-1 rounded-xl"
+              >
+                <FileSpreadsheet className="w-4 h-4 mr-2" />
+                Exportar CSV
+              </Button>
+            </div>
           </div>
         </Card>
 
