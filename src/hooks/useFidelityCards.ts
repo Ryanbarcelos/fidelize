@@ -209,14 +209,16 @@ export function useFidelityCards() {
     if (!user) return { success: false, error: "Usuário não autenticado" };
 
     try {
-      // Find the company by share code
-      const { data: companyData, error: companyError } = await supabase
-        .from("companies")
-        .select("id, name")
-        .eq("share_code", shareCode.toUpperCase())
-        .maybeSingle();
+      // Find the company by share code using the RPC function (bypasses RLS)
+      const { data: companyResults, error: companyError } = await supabase
+        .rpc("find_company_by_share_code", { p_share_code: shareCode.toUpperCase() });
 
-      if (companyError) throw companyError;
+      if (companyError) {
+        console.error("Error finding company:", companyError);
+        throw companyError;
+      }
+      
+      const companyData = companyResults?.[0];
       if (!companyData) {
         return { success: false, error: "Loja não encontrada. Verifique o código." };
       }
