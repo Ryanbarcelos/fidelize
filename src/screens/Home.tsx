@@ -2,13 +2,14 @@ import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useGamification } from "@/hooks/useGamification";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
+import { useAutomaticPromotions } from "@/hooks/useAutomaticPromotions";
 import { FidelityCardItem } from "@/components/cards/FidelityCardItem";
 import { AddStoreModal } from "@/components/cards/AddStoreModal";
 import { SearchBar } from "@/components/common/SearchBar";
 import { SortSelect } from "@/components/common/SortSelect";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, Wallet, Store } from "lucide-react";
+import { Plus, Wallet, Store, Gift } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 
@@ -16,10 +17,23 @@ const Home = () => {
   const navigate = useNavigate();
   const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
   const { cards: fidelityCards, loading: fidelityLoading, refetchCards } = useFidelityCards();
+  const { fetchEarnedPromotions } = useAutomaticPromotions();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
   const { level, xpProgress } = useGamification();
+  const [pendingPromotionsCount, setPendingPromotionsCount] = useState(0);
+
+  // Fetch pending promotions count
+  useEffect(() => {
+    const loadPromotionCount = async () => {
+      const earned = await fetchEarnedPromotions();
+      setPendingPromotionsCount(earned.filter(p => !p.isRedeemed).length);
+    };
+    if (isAuthenticated) {
+      loadPromotionCount();
+    }
+  }, [isAuthenticated]);
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -94,7 +108,7 @@ const Home = () => {
         {/* Add Store by Code Section */}
         <Card 
           onClick={() => setShowAddStoreModal(true)}
-          className="p-4 mb-6 border-dashed border-2 border-primary/30 bg-primary/5 rounded-2xl cursor-pointer hover:bg-primary/10 transition-all fade-in"
+          className="p-4 mb-4 border-dashed border-2 border-primary/30 bg-primary/5 rounded-2xl cursor-pointer hover:bg-primary/10 transition-all fade-in"
         >
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
@@ -105,6 +119,31 @@ const Home = () => {
               <p className="text-sm text-muted-foreground">Digite o código da loja para criar seu cartão</p>
             </div>
             <Plus className="w-5 h-5 text-primary" />
+          </div>
+        </Card>
+
+        {/* My Promotions Section */}
+        <Card 
+          onClick={() => navigate("/earned-promotions")}
+          className="p-4 mb-6 border-0 shadow-md rounded-2xl bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-950/50 dark:to-orange-950/50 cursor-pointer hover:shadow-lg transition-all fade-in"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-500 to-orange-500 flex items-center justify-center shadow-md">
+              <Gift className="w-6 h-6 text-white" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">Minhas Promoções</h3>
+              <p className="text-sm text-muted-foreground">
+                {pendingPromotionsCount > 0 
+                  ? `${pendingPromotionsCount} recompensa(s) para resgatar!` 
+                  : "Veja suas recompensas conquistadas"}
+              </p>
+            </div>
+            {pendingPromotionsCount > 0 && (
+              <span className="w-8 h-8 rounded-full bg-amber-500 text-white text-sm font-bold flex items-center justify-center">
+                {pendingPromotionsCount}
+              </span>
+            )}
           </div>
         </Card>
 
