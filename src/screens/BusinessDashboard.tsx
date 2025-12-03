@@ -2,6 +2,8 @@ import { useEffect, useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useCards } from "@/hooks/useCards";
+import { useFidelityCards } from "@/hooks/useFidelityCards";
+import { useCompanies } from "@/hooks/useCompanies";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
@@ -14,14 +16,20 @@ import {
   QrCode, 
   Megaphone,
   UserCircle,
-  BarChart3
+  BarChart3,
+  Copy,
+  Check
 } from "lucide-react";
+import { toast } from "sonner";
 
 const BusinessDashboard = () => {
   const navigate = useNavigate();
   const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
   const { cards, loading: cardsLoading } = useCards();
+  const { clients, loading: clientsLoading } = useFidelityCards();
+  const { company, loading: companyLoading } = useCompanies();
   const [isVisible, setIsVisible] = useState(false);
+  const [codeCopied, setCodeCopied] = useState(false);
 
   useEffect(() => {
     if (!authLoading && (!currentUser || currentUser.accountType !== 'business')) {
@@ -33,13 +41,13 @@ const BusinessDashboard = () => {
     }
   }, [currentUser, isAuthenticated, authLoading, navigate]);
 
-  // Calculate store stats
+  // Calculate store stats - now using real fidelity_cards data
   const storeStats = useMemo(() => {
     const storeName = currentUser?.storeName || "";
     const storeCards = cards.filter(c => c.storeName === storeName);
     
-    // Total clients
-    const totalClients = storeCards.length;
+    // Total clients from fidelity_cards table (real data!)
+    const totalClients = clients.length;
     
     // Points added today
     const today = new Date().toDateString();
@@ -76,11 +84,20 @@ const BusinessDashboard = () => {
       rewardsCollected,
       weeklyActivity,
     };
-  }, [cards, currentUser]);
+  }, [cards, currentUser, clients]);
 
   const getInitial = (name: string) => name?.charAt(0).toUpperCase() || "L";
 
-  if (authLoading || cardsLoading) {
+  const copyShareCode = () => {
+    if (company?.shareCode) {
+      navigator.clipboard.writeText(company.shareCode);
+      setCodeCopied(true);
+      toast.success("Código copiado!");
+      setTimeout(() => setCodeCopied(false), 2000);
+    }
+  };
+
+  if (authLoading || cardsLoading || clientsLoading || companyLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -133,6 +150,31 @@ const BusinessDashboard = () => {
       <main className={`container mx-auto px-4 py-8 space-y-6 transition-all duration-700 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
       }`}>
+        {/* Share Code Card */}
+        {company && (
+          <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-orange-50 to-orange-100 dark:from-orange-950 dark:to-orange-900 fade-in">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-muted-foreground mb-1">Código da Loja</p>
+                <p className="text-2xl font-bold text-foreground tracking-wider">{company.shareCode}</p>
+                <p className="text-xs text-muted-foreground mt-1">Compartilhe com seus clientes</p>
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={copyShareCode}
+                className="rounded-xl h-12 w-12"
+              >
+                {codeCopied ? (
+                  <Check className="w-5 h-5 text-green-500" />
+                ) : (
+                  <Copy className="w-5 h-5" />
+                )}
+              </Button>
+            </div>
+          </Card>
+        )}
+
         {/* Premium Stats Cards */}
         <div className="grid grid-cols-2 gap-5 fade-in">
           <Card className="p-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 hover-scale">

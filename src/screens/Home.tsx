@@ -3,11 +3,14 @@ import { useAuth } from "@/hooks/useAuth";
 import { useCards } from "@/hooks/useCards";
 import { useAchievements } from "@/hooks/useAchievements";
 import { useGamification } from "@/hooks/useGamification";
+import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { CardItem } from "@/components/cards/CardItem";
+import { AddStoreModal } from "@/components/cards/AddStoreModal";
 import { SearchBar } from "@/components/common/SearchBar";
 import { SortSelect } from "@/components/common/SortSelect";
 import { Button } from "@/components/ui/button";
-import { Plus, Wallet } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Plus, Wallet, Store } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 
@@ -15,8 +18,10 @@ const Home = () => {
   const navigate = useNavigate();
   const { currentUser, isAuthenticated, isLoading: authLoading } = useAuth();
   const { cards, loading: cardsLoading } = useCards();
+  const { cards: fidelityCards, loading: fidelityLoading, refetchCards } = useFidelityCards();
   const [searchQuery, setSearchQuery] = useState("");
   const [sortBy, setSortBy] = useState("name");
+  const [showAddStoreModal, setShowAddStoreModal] = useState(false);
   const { updateAchievements } = useAchievements();
   const { level, xpProgress } = useGamification();
 
@@ -53,7 +58,7 @@ const Home = () => {
     return filtered;
   }, [cards, searchQuery, sortBy]);
 
-  if (authLoading || cardsLoading) {
+  if (authLoading || cardsLoading || fidelityLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -97,6 +102,55 @@ const Home = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8 pb-24">
+        {/* Add Store by Code Section */}
+        <Card 
+          onClick={() => setShowAddStoreModal(true)}
+          className="p-4 mb-6 border-dashed border-2 border-primary/30 bg-primary/5 rounded-2xl cursor-pointer hover:bg-primary/10 transition-all fade-in"
+        >
+          <div className="flex items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Store className="w-6 h-6 text-primary" />
+            </div>
+            <div className="flex-1">
+              <h3 className="font-semibold text-foreground">Adicionar Loja</h3>
+              <p className="text-sm text-muted-foreground">Digite o código da loja para criar seu cartão</p>
+            </div>
+            <Plus className="w-5 h-5 text-primary" />
+          </div>
+        </Card>
+
+        {/* Fidelity Cards from Companies */}
+        {fidelityCards.length > 0 && (
+          <div className="mb-8 space-y-4 fade-in">
+            <h2 className="text-xl font-bold text-foreground tracking-tight">Cartões de Fidelidade</h2>
+            <div className="grid gap-4">
+              {fidelityCards.map((card, index) => (
+                <Card 
+                  key={card.id}
+                  className="p-4 rounded-2xl shadow-premium hover:shadow-premium-lg transition-all"
+                  style={{ animationDelay: `${index * 60}ms` }}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl gradient-glow flex items-center justify-center">
+                      <span className="text-white text-xl font-bold">
+                        {card.company?.name?.charAt(0) || "L"}
+                      </span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-bold text-foreground">{card.company?.name || "Loja"}</h3>
+                      <p className="text-sm text-muted-foreground">Código: {card.company?.shareCode}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-primary">{card.balance}</p>
+                      <p className="text-xs text-muted-foreground">pontos</p>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         <div className="mb-8 space-y-4 fade-in">
           <h2 className="text-3xl font-bold text-foreground tracking-tight">Meus Cartões</h2>
           <div className="flex flex-col sm:flex-row gap-3">
@@ -156,6 +210,13 @@ const Home = () => {
           <Plus className="w-7 h-7" />
         </Button>
       </div>
+
+      {/* Add Store Modal */}
+      <AddStoreModal
+        open={showAddStoreModal}
+        onOpenChange={setShowAddStoreModal}
+        onSuccess={refetchCards}
+      />
 
       <BottomNavigation />
     </div>
