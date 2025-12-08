@@ -1,20 +1,25 @@
 import { useAuth } from "@/hooks/useAuth";
 import { useGamification } from "@/hooks/useGamification";
+import { useAchievements } from "@/hooks/useAchievements";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 import { MedalDisplay } from "@/components/gamification/MedalDisplay";
-import { LogOut, Store, Trophy, MapPinned, Zap, CreditCard, Star, Settings } from "lucide-react";
+import { XPProgressBar } from "@/components/gamification/XPProgressBar";
+import { StreakCard } from "@/components/gamification/StreakCard";
+import { LogOut, Store, Trophy, MapPinned, Zap, CreditCard, Star, Settings, Flame } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
+import { getLevelTitle } from "@/types/achievement";
 
 const Profile = () => {
   const { currentUser, logout } = useAuth();
   const { level, totalRewards, xpProgress, medals, unlockedMedals, nextMedal } = useGamification();
+  const { currentStreak, getCompletedCount, achievements } = useAchievements();
   const { cards: fidelityCards } = useFidelityCards();
   const navigate = useNavigate();
+  const levelTitle = getLevelTitle(level);
 
   // Calculate total points across all fidelity cards
   const totalPoints = fidelityCards.reduce((sum, card) => sum + (card.balance || 0), 0);
@@ -45,82 +50,78 @@ const Profile = () => {
 
       <main className="container mx-auto px-4 py-8 pb-24">
         {/* Premium User Info Card with Level */}
-        <Card className="p-8 mb-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-primary/5 to-primary-light/5 fade-in">
-          <div className="flex items-center gap-5 mb-8">
+        <Card className="p-6 mb-6 border-0 shadow-premium-lg rounded-3xl bg-gradient-to-br from-primary/5 to-primary-light/5 fade-in">
+          <div className="flex items-center gap-4 mb-6">
             <div className="relative">
-              <div className="w-20 h-20 rounded-3xl gradient-glow flex items-center justify-center text-white text-3xl font-bold shadow-premium-lg">
+              <div className="w-18 h-18 rounded-3xl gradient-glow flex items-center justify-center text-white text-2xl font-bold shadow-premium-lg">
                 {currentUser?.name.charAt(0).toUpperCase()}
               </div>
-              <div className="absolute -bottom-2 -right-2 w-10 h-10 rounded-2xl bg-gradient-to-br from-yellow-400 to-yellow-500 flex items-center justify-center shadow-premium border-4 border-white dark:border-card pulse-soft">
+              <div className="absolute -bottom-2 -right-2 w-9 h-9 rounded-xl bg-gradient-to-br from-yellow-400 to-yellow-500 flex items-center justify-center shadow-premium border-3 border-white dark:border-card">
                 <span className="text-white text-sm font-bold">{level}</span>
               </div>
             </div>
             <div className="flex-1">
-              <h2 className="text-2xl font-bold text-foreground mb-1 tracking-tight">{currentUser?.name}</h2>
-              <p className="text-sm text-muted-foreground mb-3">{currentUser?.email}</p>
-              <div className="flex items-center gap-2 text-primary">
-                <Zap className="w-5 h-5" />
-                <span className="text-base font-semibold">Nível {level}</span>
+              <h2 className="text-xl font-bold text-foreground mb-0.5 tracking-tight">{currentUser?.name}</h2>
+              <p className="text-sm text-muted-foreground mb-2">{currentUser?.email}</p>
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold">
+                  {levelTitle}
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Premium XP Progress */}
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-sm font-semibold text-foreground">
-                Progresso para Nível {level + 1}
-              </span>
-              <span className="text-sm font-bold text-primary">
-                {xpProgress.current}/{xpProgress.needed} XP
-              </span>
-            </div>
-            <div className="relative overflow-hidden rounded-full h-4 bg-muted">
-              <div 
-                className="absolute top-0 left-0 h-full bg-gradient-to-r from-primary to-primary-light rounded-full transition-all duration-700 shadow-glow"
-                style={{ width: `${xpProgress.progress}%` }}
-              />
-            </div>
-            <p className="text-sm text-muted-foreground">
-              {xpProgress.needed - xpProgress.current} recompensas até o próximo nível
-            </p>
-          </div>
+          {/* XP Progress Bar */}
+          <XPProgressBar
+            level={level}
+            current={xpProgress.current}
+            needed={xpProgress.needed}
+            progress={xpProgress.progress}
+          />
         </Card>
+
+        {/* Streak Card */}
+        {currentStreak > 0 && (
+          <StreakCard 
+            currentStreak={currentStreak} 
+            className="mb-6 slide-in"
+          />
+        )}
 
         {/* Premium Gamification Stats */}
         <Card className="p-6 mb-6 border-0 shadow-premium-lg rounded-3xl slide-in">
-          <h3 className="font-bold text-foreground mb-6 text-xl flex items-center gap-2">
-            <Trophy className="w-6 h-6 text-primary" />
+          <h3 className="font-bold text-foreground mb-5 text-lg flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-primary" />
             Estatísticas
           </h3>
-          <div className="grid grid-cols-2 gap-4">
-            <div className="bg-gradient-to-br from-primary/10 to-primary-light/10 rounded-3xl p-5 border border-primary/20 shadow-premium hover-scale">
-              <div className="flex items-center gap-2 mb-2">
+          <div className="grid grid-cols-2 gap-3">
+            <div className="bg-gradient-to-br from-primary/10 to-primary-light/10 rounded-2xl p-4 border border-primary/20 shadow-premium hover-scale">
+              <div className="flex items-center gap-2 mb-1">
                 <Zap className="w-4 h-4 text-primary" />
-                <p className="text-sm font-medium text-muted-foreground">Nível</p>
+                <p className="text-xs font-medium text-muted-foreground">Nível</p>
               </div>
-              <p className="text-3xl font-bold text-foreground tracking-tight">{level}</p>
+              <p className="text-2xl font-bold text-foreground">{level}</p>
             </div>
-            <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-3xl p-5 border border-success/20 shadow-premium hover-scale">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 rounded-2xl p-4 border border-orange-500/20 shadow-premium hover-scale">
+              <div className="flex items-center gap-2 mb-1">
+                <Flame className="w-4 h-4 text-orange-500" />
+                <p className="text-xs font-medium text-muted-foreground">Sequência</p>
+              </div>
+              <p className="text-2xl font-bold text-foreground">{currentStreak} dias</p>
+            </div>
+            <div className="bg-gradient-to-br from-success/10 to-success/5 rounded-2xl p-4 border border-success/20 shadow-premium hover-scale">
+              <div className="flex items-center gap-2 mb-1">
                 <Trophy className="w-4 h-4 text-success" />
-                <p className="text-sm font-medium text-muted-foreground">Recompensas</p>
+                <p className="text-xs font-medium text-muted-foreground">Conquistas</p>
               </div>
-              <p className="text-3xl font-bold text-foreground tracking-tight">{totalRewards}</p>
+              <p className="text-2xl font-bold text-foreground">{getCompletedCount()}/{achievements.length}</p>
             </div>
-            <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-400/5 rounded-3xl p-5 border border-yellow-500/20 shadow-premium hover-scale">
-              <div className="flex items-center gap-2 mb-2">
+            <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-400/5 rounded-2xl p-4 border border-yellow-500/20 shadow-premium hover-scale">
+              <div className="flex items-center gap-2 mb-1">
                 <Star className="w-4 h-4 text-yellow-500" />
-                <p className="text-sm font-medium text-muted-foreground">Pontos Totais</p>
+                <p className="text-xs font-medium text-muted-foreground">Pontos</p>
               </div>
-              <p className="text-3xl font-bold text-foreground tracking-tight">{totalPoints}</p>
-            </div>
-            <div className="bg-gradient-to-br from-blue-500/10 to-blue-400/5 rounded-3xl p-5 border border-blue-500/20 shadow-premium hover-scale">
-              <div className="flex items-center gap-2 mb-2">
-                <CreditCard className="w-4 h-4 text-blue-500" />
-                <p className="text-sm font-medium text-muted-foreground">Cartões</p>
-              </div>
-              <p className="text-3xl font-bold text-foreground tracking-tight">{totalCards}</p>
+              <p className="text-2xl font-bold text-foreground">{totalPoints}</p>
             </div>
           </div>
         </Card>
