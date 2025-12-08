@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useLocation } from "@/hooks/useLocation";
+import { useTheme } from "@/hooks/useTheme";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -17,7 +18,10 @@ import {
   Save,
   Eye,
   EyeOff,
-  Loader2
+  Loader2,
+  Sun,
+  Moon,
+  Monitor
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -26,6 +30,7 @@ import { supabase } from "@/integrations/supabase/client";
 const Settings = () => {
   const { currentUser, user } = useAuth();
   const { permissionGranted, requestLocationPermission } = useLocation();
+  const { theme, setTheme } = useTheme();
   const navigate = useNavigate();
   
   const [name, setName] = useState(currentUser?.name || "");
@@ -369,10 +374,45 @@ const Settings = () => {
           </div>
         </Card>
 
-        {/* App Info */}
+        {/* Theme Settings */}
         <Card className="p-6 border-0 shadow-premium rounded-3xl">
           <h2 className="font-bold text-foreground mb-6 text-lg flex items-center gap-2">
             <Palette className="w-5 h-5 text-primary" />
+            Aparência
+          </h2>
+          
+          <div className="grid grid-cols-3 gap-3">
+            <Button
+              variant={theme === 'light' ? 'default' : 'outline'}
+              onClick={() => setTheme('light')}
+              className="flex flex-col items-center gap-2 h-auto py-4 rounded-2xl"
+            >
+              <Sun className="w-5 h-5" />
+              <span className="text-xs">Claro</span>
+            </Button>
+            <Button
+              variant={theme === 'dark' ? 'default' : 'outline'}
+              onClick={() => setTheme('dark')}
+              className="flex flex-col items-center gap-2 h-auto py-4 rounded-2xl"
+            >
+              <Moon className="w-5 h-5" />
+              <span className="text-xs">Escuro</span>
+            </Button>
+            <Button
+              variant={theme === 'system' ? 'default' : 'outline'}
+              onClick={() => setTheme('system')}
+              className="flex flex-col items-center gap-2 h-auto py-4 rounded-2xl"
+            >
+              <Monitor className="w-5 h-5" />
+              <span className="text-xs">Sistema</span>
+            </Button>
+          </div>
+        </Card>
+
+        {/* App Info */}
+        <Card className="p-6 border-0 shadow-premium rounded-3xl">
+          <h2 className="font-bold text-foreground mb-6 text-lg flex items-center gap-2">
+            <Shield className="w-5 h-5 text-primary" />
             Sobre o App
           </h2>
           
