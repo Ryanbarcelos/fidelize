@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { useGamification } from "@/hooks/useGamification";
+import { useAchievements } from "@/hooks/useAchievements";
 import { useFidelityCards } from "@/hooks/useFidelityCards";
 import { useAutomaticPromotions } from "@/hooks/useAutomaticPromotions";
 import { usePWA } from "@/hooks/usePWA";
@@ -8,9 +9,11 @@ import { FidelityCardItem } from "@/components/cards/FidelityCardItem";
 import { AddStoreModal } from "@/components/cards/AddStoreModal";
 import { SearchBar } from "@/components/common/SearchBar";
 import { SortSelect } from "@/components/common/SortSelect";
+import { XPProgressBar } from "@/components/gamification/XPProgressBar";
+import { StreakCard } from "@/components/gamification/StreakCard";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Plus, Wallet, Store, Gift, Download } from "lucide-react";
+import { Plus, Wallet, Store, Gift, Download, Trophy } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { BottomNavigation } from "@/components/layout/BottomNavigation";
 
@@ -23,6 +26,7 @@ const Home = () => {
   const [sortBy, setSortBy] = useState("name");
   const [showAddStoreModal, setShowAddStoreModal] = useState(false);
   const { level, xpProgress } = useGamification();
+  const { currentStreak, getCompletedCount, achievements } = useAchievements();
   const { isInstalled: isPWAInstalled } = usePWA();
   const [pendingPromotionsCount, setPendingPromotionsCount] = useState(0);
 
@@ -78,35 +82,49 @@ const Home = () => {
     <div className="min-h-screen bg-background pb-20">
       {/* Premium Header with Level */}
       <header className="bg-card/80 backdrop-blur-xl border-b border-border/50 sticky top-0 z-10 shadow-premium">
-        <div className="container mx-auto px-4 py-5">
-          <div className="flex items-center justify-between">
+        <div className="container mx-auto px-4 py-4">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl gradient-glow flex items-center justify-center">
-                <Wallet className="w-6 h-6 text-white drop-shadow-md" />
+              <div className="w-11 h-11 rounded-2xl gradient-glow flex items-center justify-center">
+                <Wallet className="w-5 h-5 text-white drop-shadow-md" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-foreground tracking-tight">Fidelize</h1>
-                <p className="text-sm text-muted-foreground">Olá, {currentUser?.name}</p>
+                <h1 className="text-xl font-bold text-foreground tracking-tight">Fidelize</h1>
+                <p className="text-xs text-muted-foreground">Olá, {currentUser?.name}</p>
               </div>
             </div>
             
-            {/* Premium Level Display */}
-            <div className="flex items-center gap-2 bg-gradient-to-br from-primary/10 to-primary-light/10 rounded-2xl px-4 py-2.5 border border-primary/20 shadow-premium">
-              <div className="w-9 h-9 rounded-full gradient-glow flex items-center justify-center">
-                <span className="text-white text-sm font-bold">{level}</span>
-              </div>
-              <div className="text-left">
-                <p className="text-xs font-semibold text-foreground">Nível {level}</p>
-                <p className="text-xs text-muted-foreground">
-                  {xpProgress.current}/{xpProgress.needed} XP
-                </p>
-              </div>
-            </div>
+            {/* Achievements quick access */}
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate("/achievements")}
+              className="rounded-xl"
+            >
+              <Trophy className="w-5 h-5 text-primary" />
+              <span className="ml-1 text-xs font-bold">{getCompletedCount()}/{achievements.length}</span>
+            </Button>
           </div>
+          
+          {/* XP Progress Bar */}
+          <XPProgressBar
+            level={level}
+            current={xpProgress.current}
+            needed={xpProgress.needed}
+            progress={xpProgress.progress}
+          />
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8 pb-24">
+      <main className="container mx-auto px-4 py-6 pb-24">
+        {/* Streak Card */}
+        {currentStreak > 0 && (
+          <StreakCard 
+            currentStreak={currentStreak} 
+            className="mb-4 fade-in"
+          />
+        )}
+
         {/* Add Store by Code Section */}
         <Card 
           onClick={() => setShowAddStoreModal(true)}
